@@ -1,0 +1,8 @@
+Sort  (cost=3378.01..3378.02 rows=1 width=1170) (actual time=61.844..61.846 rows=0 loops=1)
+  Sort Key: issued_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Seq Scan on user_session  (cost=0.00..3378.00 rows=1 width=1170) (actual time=61.832..61.833 rows=0 loops=1)
+        Filter: (user_id = '5109bc19-175d-441a-9da7-c2ac7e92f708'::uuid)
+        Rows Removed by Filter: 100000
+Planning Time: 0.979 ms
+Execution Time: 61.907 ms

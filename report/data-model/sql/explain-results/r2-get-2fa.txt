@@ -1,0 +1,5 @@
+Seq Scan on auth_factor  (cost=0.00..1813.40 rows=1 width=43) (actual time=26.360..26.361 rows=0 loops=1)
+  Filter: (user_id = '88b30e7d-8475-4bad-aeaa-6a11e33c5921'::uuid)
+  Rows Removed by Filter: 70192
+Planning Time: 0.525 ms
+Execution Time: 26.393 ms

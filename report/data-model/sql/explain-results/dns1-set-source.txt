@@ -1,0 +1,11 @@
+Sort  (cost=17219.48..17219.48 rows=1 width=56) (actual time=124.010..126.412 rows=0 loops=1)
+  Sort Key: created_at
+  Sort Method: quicksort  Memory: 25kB
+  ->  Gather  (cost=1000.00..17219.47 rows=1 width=56) (actual time=123.999..126.400 rows=0 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        ->  Parallel Seq Scan on dns_record  (cost=0.00..16219.37 rows=1 width=56) (actual time=114.080..114.081 rows=0 loops=3)
+              Filter: (domain_id = '5109bc19-175d-441a-9da7-c2ac7e92f708'::uuid)
+              Rows Removed by Filter: 299864
+Planning Time: 0.710 ms
+Execution Time: 126.532 ms

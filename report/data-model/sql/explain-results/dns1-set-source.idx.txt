@@ -1,0 +1,7 @@
+Sort  (cost=8.45..8.46 rows=1 width=56) (actual time=1.078..1.080 rows=0 loops=1)
+  Sort Key: created_at
+  Sort Method: quicksort  Memory: 25kB
+  ->  Index Scan using dns_record_domain_id_idx on dns_record  (cost=0.42..8.44 rows=1 width=56) (actual time=1.066..1.067 rows=0 loops=1)
+        Index Cond: (domain_id = '8b0102f1-40ca-42a3-8dc0-e57fc1df777c'::uuid)
+Planning Time: 1.263 ms
+Execution Time: 1.135 ms

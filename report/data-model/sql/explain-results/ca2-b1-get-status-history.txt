@@ -1,0 +1,8 @@
+Sort  (cost=2052.50..2052.50 rows=1 width=20) (actual time=24.104..24.105 rows=0 loops=1)
+  Sort Key: created_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Seq Scan on payment_status  (cost=0.00..2052.49 rows=1 width=20) (actual time=24.092..24.092 rows=0 loops=1)
+        Filter: (payment_operation_id = '5109bc19-175d-441a-9da7-c2ac7e92f708'::uuid)
+        Rows Removed by Filter: 89959
+Planning Time: 0.613 ms
+Execution Time: 24.176 ms

@@ -1,9 +1,17 @@
-= Модель ИС "Регистратор доменных имён"
+#import "typst/helpers.typ": *
+
+#set page(margin: 2cm)
+#set heading(numbering: "1.")
+#set text(lang: "ru")
+
+#align(center, text([
+  Курсовая работа 2 этап\
+  Модель ИС "Регистратор доменных имён"
+], size: 14pt, weight: "bold"))
 
 *Выполнили:* \ Малышев Никита Александрович (409067),\ Зинченко Иван Николаевич (408657)
 
-Хеш коммита с SRS(ветка srs): `a95e42613364b1a6e1d34e7f11b58675ca561a25`
-
+Хеш коммита с SRS(ветка srs): `a95e42613364b1a6e1d34e7f11b58675ca561a25```\
 Хеш(sha1) файла SRS: `46a069b66f43797ac2afc61b9693cfdd1b7c6ffe`
 
 #outline(title: "Содержание")
@@ -16,50 +24,109 @@
 
 = Создание БД
 
-#let create-db = read("sql/create-db.sql")
-
-#raw(create-db, lang: "sql")
+#insertSql("sql/create-db.sql")
 
 = Удаление БД
 
-#let delete-db = read("sql/delete-db.sql")
+#insertSql("sql/delete-db.sql")
 
-#raw(delete-db, lang: "sql")
+= Генерация данных <data_generation>
 
-= Генерация данных
+#insertSql("sql/generate.sql")
 
-#let generate = read("sql/generate.sql")
+= Доказательство необходимости индексов
 
-#raw(generate, lang: "sql")
+Докажем, что индексы, которые созданы через ```sql CREATE INDEX``` повышают производительность системы. Имеются следующие индексы:
+
+#ctx_indexList("sql/create-db.sql")
+
+Для проверки необходимости индексов будем сравнивать планы выполнения SQL запросов при помощи команды `EXPLAIN ANALYZE`. Сначала выполним её без индексов, затем после. Выполнение будет на тестовых данных, которые сгенерированы скриптом выше (@data_generation).
+
+Рассмотрим прецеденты из SRS, которые выполняют операции чтения из базы данных и обращаются к полям, отличным от первичных или уникальных.
+
+Удалим индексы из БД, выполнив команду:
+
+#raw(ctx_dropLines("sql/create-db.sql").join("\n"), lang: "sql")
+
+Не забудем выполнить `ANALYZE`. Проведём анализ планов и затем вернём индексы обратно.
+
+#raw(ctx_createLines("sql/create-db.sql").join("\n"), lang: "sql")
+
+Провёдм сравнение планов выполнения запросов.
+
+== R2 - Аутентификация пользователя
+
+#showExplain("sql/precedents/r2-get-2fa.sql")
+
+== CA2/B1 - Оформление заказа и Оплата заказа
+
+#showExplain("sql/precedents/ca2-b1-get-unpaid.sql")
+
+#showExplain("sql/precedents/ca2-b1-get-status-history.sql")
+
+#showExplain("sql/precedents/ca2-b1-get-refund-history.sql")
+
+== DNS1 - Управление DNS
+
+#showExplain("sql/precedents/dns1-set-source.sql")
+
+== PR2 - Напоминания о продлении
+
+#showExplain("sql/precedents/pr2-notificate-for-extend.sql")
+
+== LK1/ADM1 - Личный кабинет
+
+#showExplain("sql/precedents/lk1-adm1-lk.sql")
+
+== LOG1 - Аудит действий
+
+#showExplain("sql/precedents/log1-get-by-actor.sql")
+
+#showExplain("sql/precedents/log1-get-by-time.sql")
+
+Как видно BRIN индекс не используется в планировщике. Это можно объяснить тем, что тестовые данные и поле at фрагментированы. При реальной работе строчки будут записываться последовательно и индекс будет использоваться.
+
+== Использования во функциях
+
+#showExplain("sql/raw-functions/maintenance_delete_expired_domains.sql")
+
+#showExplain("sql/raw-functions/maintenance_delete_expired_sessions.sql")
 
 = Функции
 
 == Удалить все просроченные заказы
 
-#let maintenance_delete_stale_orders = read("sql/functions/maintenance_delete_stale_orders.sql")
+Функция возвращает количество удалённых записей заказов.
 
-#raw(maintenance_delete_stale_orders, lang: "sql")
+#insertSql("sql/functions/maintenance_delete_stale_orders.sql")
 
 == Удалить все просроченные email_tokens
 
-#let maintenance_delete_expired_email_tokens = read("sql/functions/maintenance_delete_expired_email_tokens.sql")
+Функция возвращает количество удалённых email_tokens записей.
 
-#raw(maintenance_delete_expired_email_tokens, lang: "sql")
+#insertSql("sql/functions/maintenance_delete_expired_email_tokens.sql")
 
-== Вернуть домены, по которым сегодня нужно отправлять напоминания
+== Административный отчёт за месяц (пользователи, домены, сумма оплат)
 
-#let reminders_domains_due_today = read("sql/functions/reminders_domains_due_today.sql")
+Функция возвращает таблицу с колонками:
+- Начало месяца
+- Конец месяца
+- Кол-во созданных пользователей
+- Кол-во созданных доменов
+- Кол-во оплаченных заказов
+- Сумма оплаченных заказов
+- Дата первого платежа
+- Дата последнего платежа
 
-#raw(reminders_domains_due_today, lang: "sql")
+#insertSql("sql/functions/admin_monthly_report.sql")
 
-== Административный-отчёт за месяц (пользователи, домены, сумма оплат)
+== Формирование списка всех просроченных доменов
 
-#let admin_monthly_report = read("sql/functions/admin_monthly_report.sql")
+Функция возвращает таблицу с колонками:
+- Идентификатор домена
+- Полное имя домена
+- Дата просрочки домена
+- Дата создания домена
+- Дата активации домена
 
-#raw(admin_monthly_report, lang: "sql")
-
-== Формирование списока всех просроченных доменов
-
-#let get_expired_domains = read("sql/functions/get_expired_domains.sql")
-
-#raw(get_expired_domains, lang: "sql")
+#insertSql("sql/functions/get_expired_domains.sql")

@@ -1,0 +1,23 @@
+Nested Loop  (cost=735.51..2833.05 rows=28 width=41) (actual time=35.650..50.139 rows=171 loops=1)
+  Join Filter: (p.user_id = u.id)
+  ->  Nested Loop  (cost=735.10..2817.64 rows=28 width=52) (actual time=35.553..43.615 rows=171 loops=1)
+        ->  Hash Join  (cost=734.66..2654.68 rows=5587 width=48) (actual time=10.048..41.758 rows=2720 loops=1)
+              Hash Cond: (dm.user_id = p.user_id)
+              ->  Seq Scan on domain_member dm  (cost=0.00..1710.00 rows=80000 width=32) (actual time=0.026..15.678 rows=80000 loops=1)
+              ->  Hash  (cost=691.70..691.70 rows=3437 width=16) (actual time=9.911..9.912 rows=3415 loops=1)
+                    Buckets: 4096  Batches: 1  Memory Usage: 193kB
+                    ->  Seq Scan on expiry_email_pref p  (cost=0.00..691.70 rows=3437 width=16) (actual time=0.041..9.205 rows=3415 loops=1)
+                          Filter: (enabled AND (days_before = 30))
+                          Rows Removed by Filter: 26881
+        ->  Memoize  (cost=0.43..1.38 rows=1 width=36) (actual time=0.000..0.000 rows=0 loops=2720)
+              Cache Key: dm.domain_id
+              Cache Mode: logical
+              Hits: 2704  Misses: 16  Evictions: 0  Overflows: 0  Memory Usage: 2kB
+              ->  Index Scan using domain_pkey on domain d  (cost=0.42..1.37 rows=1 width=36) (actual time=0.054..0.054 rows=0 loops=16)
+                    Index Cond: (id = dm.domain_id)
+                    Filter: ((expires_at)::date = ((now() + ('30 days'::cstring)::interval))::date)
+                    Rows Removed by Filter: 1
+  ->  Index Scan using app_user_pkey on app_user u  (cost=0.42..0.54 rows=1 width=37) (actual time=0.037..0.037 rows=1 loops=171)
+        Index Cond: (id = dm.user_id)
+Planning Time: 3.338 ms
+Execution Time: 50.471 ms

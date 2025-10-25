@@ -1,0 +1,13 @@
+Limit  (cost=5199.56..5314.56 rows=1000 width=59) (actual time=15.146..18.339 rows=1000 loops=1)
+  ->  Gather Merge  (cost=5199.56..8928.67 rows=32427 width=59) (actual time=15.143..18.276 rows=1000 loops=1)
+        Workers Planned: 1
+        Workers Launched: 1
+        ->  Sort  (cost=4199.55..4280.62 rows=32427 width=59) (actual time=9.913..9.999 rows=826 loops=2)
+              Sort Key: at DESC
+              Sort Method: top-N heapsort  Memory: 181kB
+              Worker 0:  Sort Method: top-N heapsort  Memory: 277kB
+              ->  Parallel Seq Scan on event  (cost=0.00..2421.61 rows=32427 width=59) (actual time=0.011..5.382 rows=27886 loops=2)
+                    Filter: ((at >= '2025-10-17 00:00:00+03'::timestamp with time zone) AND (at < '2025-11-17 00:00:00+03'::timestamp with time zone))
+                    Rows Removed by Filter: 27114
+Planning Time: 0.065 ms
+Execution Time: 18.527 ms

@@ -1,19 +1,19 @@
-create or replace function get_expired_domains()
-returns table (
+CREATE OR REPLACE FUNCTION
+  get_expired_domains()
+RETURNS table (
   domain_id uuid,
   fqdn text,
-  expires_at timestamptz,
-  zone2_id uuid,
+  created_at timestamptz,
   activated_at timestamptz,
-  created_at timestamptz
+  expires_at timestamptz
 )
-language plpgsql
-as $$
-begin
-  return query
-  select d.id, d.fqdn, d.expires_at, d.zone2_id, d.activated_at, d.created_at
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN query
+  select d.id, d.fqdn, d.expires_at, d.activated_at, d.created_at
   from domain d
-  where d.expires_at < now()
+  WHERE d.expires_at < now()
   order by d.expires_at asc;
-end;
+END;
 $$;

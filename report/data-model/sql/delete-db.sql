@@ -1,15 +1,18 @@
 DO $$
 DECLARE
-  t text;
+  r record;
 BEGIN
-  FOREACH t IN ARRAY ARRAY[
-    'app_user','auth_factor','expiry_email_pref','zone2','domain',
-    'dns_record','ns_delegation','cart','cart_item','app_order',
-    'app_order_item','payment_operation','payment_status','refund',
-    'reserved_name','domain_member','user_session'
-  ]
+  FOR r IN
+	SELECT t.table_name
+    FROM information_schema.tables  AS t
+    JOIN information_schema.columns AS c
+      ON c.table_schema = t.table_schema
+      AND c.table_name = t.table_name
+      AND c.column_name = 'updated_at'
+    WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
+      AND t.table_type = 'BASE TABLE'
   LOOP
-    EXECUTE format('DROP TRIGGER IF EXISTS %I_set_updated_at ON %I;', t, t);
+    EXECUTE format('DROP TRIGGER IF EXISTS %I_set_updated_at ON %I;', r.table_name, r.table_name);
   END LOOP;
 END $$;
 

@@ -1,0 +1,4 @@
+Index Scan using domain_expires_at_idx on domain d  (cost=0.42..8.45 rows=1 width=36) (actual time=0.022..0.022 rows=0 loops=1)
+  Index Cond: ((expires_at >= '2025-09-17 00:00:00+03'::timestamp with time zone) AND (expires_at < '2025-10-17 00:00:00+03'::timestamp with time zone))
+Planning Time: 1.213 ms
+Execution Time: 0.048 ms

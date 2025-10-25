@@ -1,0 +1,6 @@
+Delete on user_session  (cost=0.00..3881.67 rows=0 width=0) (actual time=12.467..12.468 rows=0 loops=1)
+  ->  Seq Scan on user_session  (cost=0.00..3881.67 rows=26 width=6) (actual time=0.624..10.381 rows=7031 loops=1)
+        Filter: (expires_at < now())
+        Rows Removed by Filter: 92947
+Planning Time: 0.123 ms
+Execution Time: 12.484 ms

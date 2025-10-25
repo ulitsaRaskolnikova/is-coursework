@@ -1,0 +1,7 @@
+Sort  (cost=8.45..8.45 rows=1 width=1170) (actual time=0.913..0.914 rows=0 loops=1)
+  Sort Key: issued_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Index Scan using user_session_user_id_idx on user_session  (cost=0.42..8.44 rows=1 width=1170) (actual time=0.898..0.899 rows=0 loops=1)
+        Index Cond: (user_id = '8b0102f1-40ca-42a3-8dc0-e57fc1df777c'::uuid)
+Planning Time: 2.060 ms
+Execution Time: 0.988 ms

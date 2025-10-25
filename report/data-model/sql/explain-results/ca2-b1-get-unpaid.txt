@@ -1,0 +1,8 @@
+Sort  (cost=3186.01..3186.02 rows=1 width=36) (actual time=31.416..31.418 rows=0 loops=1)
+  Sort Key: created_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Seq Scan on app_order  (cost=0.00..3186.00 rows=1 width=36) (actual time=31.370..31.371 rows=0 loops=1)
+        Filter: ((paid_at IS NULL) AND (user_id = '5109bc19-175d-441a-9da7-c2ac7e92f708'::uuid) AND (created_at >= (now() - '00:10:00'::interval)))
+        Rows Removed by Filter: 100000
+Planning Time: 1.208 ms
+Execution Time: 31.628 ms
