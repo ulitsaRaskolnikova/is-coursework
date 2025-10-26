@@ -226,18 +226,28 @@ FROM app_user
 WHERE random() < 0.2
 ON CONFLICT DO NOTHING;
 
-INSERT INTO event(actor_type, actor_id, action, resource, ip, at)
-SELECT
-  (ARRAY['user','admin','system'])[1 + (random()*2)::int],
-  u.id,
-  'login',
-  'user',
-  generate_ipv4(),
-  now() - random() * interval '90 days'
-FROM app_user u
-JOIN generate_series(1,10000) gs ON true
-ORDER BY random()
-LIMIT 10000;
+BEGIN
+  DECLARE
+    uids uuid[];
+    n int;
+  BEGIN
+    SELECT array_agg(id) INTO uids FROM app_user;
+      n := coalesce(array_length(uids, 1), 0);
+
+    FOR months in 0..9 LOOP
+      FOR seconds in 1..10000 LOOP
+        INSERT INTO event(actor_type, actor_id, action, resource, ip, at)
+        SELECT
+          (ARRAY['user','admin','system'])[1 + (random()*2)::int],
+          uids[months + seconds],
+          (ARRAY['login', 'logout', 'create_payment', 'delete_dns_record'])[1 + (random()*3)::int],
+          (ARRAY[uids[months + seconds]::text, 'example.com'])[1 + (random()*1)::int],
+          generate_ipv4(),
+          now() + seconds * '1 second'::interval + months * '1 month'::interval;
+      END LOOP;
+    END LOOP;
+  END;
+END;
 
 END $$;
 
