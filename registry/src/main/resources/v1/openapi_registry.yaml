@@ -1,0 +1,30 @@
+openapi: 3.0.1
+info:
+  title: Регистр доменов
+  version: 0.0.1
+tags:
+  - name: domain
+    description: API для работы с доменами
+paths:
+  /api/v1/domain:
+    post:
+      tags:
+        - domain
+      summary: Запрос на регистрацию домена
+      description: Вызывается с front через UI
+      requestBody:
+        required: true
+        description: Запрос на регистрацию домена
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: Домен зарегистрирован
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true
