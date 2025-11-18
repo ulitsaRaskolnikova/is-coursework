@@ -229,10 +229,8 @@ ON CONFLICT DO NOTHING;
 BEGIN
   DECLARE
     uids uuid[];
-    n int;
   BEGIN
     SELECT array_agg(id) INTO uids FROM app_user;
-      n := coalesce(array_length(uids, 1), 0);
 
     FOR months in 0..9 LOOP
       FOR seconds in 1..10000 LOOP

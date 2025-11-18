@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION maintenance_delete_stale_orders()
-RETURN BIGINT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
