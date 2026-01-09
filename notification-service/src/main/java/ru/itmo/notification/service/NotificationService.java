@@ -2,6 +2,7 @@ package ru.itmo.notification.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.itmo.common.notification.NotificationType;
@@ -16,11 +17,12 @@ public class NotificationService {
 
     private final EmailService emailService;
     private final RestTemplate restTemplate;
-    private final String authServiceUrl = "http://auth-service:8081";
+    
+    @Value("${services.auth.url}")
+    private String authServiceUrl;
 
     public void sendNotification(SendNotificationRequest request) {
-        // String userEmail = getUserEmail(request.getUserId());
-        String userEmail = "malyshev.2005n@gmail.com";
+        String userEmail = getUserEmail(request.getUserId());
         
         if (userEmail == null || userEmail.isEmpty()) {
             log.warn("User email not found for userId: {}", request.getUserId());
@@ -41,7 +43,7 @@ public class NotificationService {
 
     private String getUserEmail(UUID userId) {
         try {
-            String url = authServiceUrl + "/api/auth/users/" + userId + "/email";
+            String url = authServiceUrl + "/users/" + userId + "/email";
             String email = restTemplate.getForObject(url, String.class);
             log.debug("Retrieved email for userId {}: {}", userId, email);
             return email;
@@ -58,6 +60,7 @@ public class NotificationService {
             case DOMAIN_ACTIVATED -> "Домен активирован";
             case DOMAIN_EXPIRING_SOON -> "Напоминание: срок действия домена истекает";
             case DOMAIN_EXPIRED -> "Срок действия домена истек";
+            case EMAIL_VERIFICATION -> "Подтверждение email адреса";
         };
     }
 }
