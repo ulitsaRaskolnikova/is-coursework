@@ -10,7 +10,7 @@ spring:
         - id: auth-service
           uri: http://localhost:8081
           predicates:
-            - Path=/api/auth/**
+            - Path=/api/auth/**, /api/users/**
           filters:
             - StripPrefix=1
         

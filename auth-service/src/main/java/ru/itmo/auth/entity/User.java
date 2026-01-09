@@ -39,6 +39,9 @@ public class User {
     @Column(name = "verification_token", columnDefinition = "UUID")
     private UUID verificationToken;
 
+    @Column(name = "is_admin", nullable = false)
+    private Boolean isAdmin = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
