@@ -1,0 +1,13 @@
+Gather Merge  (cost=20963.67..22589.42 rows=13934 width=36) (actual time=145.551..150.478 rows=19341 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Sort  (cost=19963.65..19981.06 rows=6967 width=36) (actual time=138.779..139.308 rows=6447 loops=3)
+        Sort Key: expires_at
+        Sort Method: quicksort  Memory: 611kB
+        Worker 0:  Sort Method: quicksort  Memory: 580kB
+        Worker 1:  Sort Method: quicksort  Memory: 596kB
+        ->  Parallel Seq Scan on domain d  (cost=0.00..19518.93 rows=6967 width=36) (actual time=0.103..135.043 rows=6447 loops=3)
+              Filter: ((expires_at >= '2025-10-17 00:00:00+03'::timestamp with time zone) AND (expires_at < '2025-11-17 00:00:00+03'::timestamp with time zone))
+              Rows Removed by Filter: 326883
+Planning Time: 0.131 ms
+Execution Time: 151.154 ms

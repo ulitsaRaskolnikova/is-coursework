@@ -1,0 +1,8 @@
+Limit  (cost=8.31..8.32 rows=1 width=54) (actual time=0.039..0.039 rows=0 loops=1)
+  ->  Sort  (cost=8.31..8.32 rows=1 width=54) (actual time=0.038..0.039 rows=0 loops=1)
+        Sort Key: at DESC
+        Sort Method: quicksort  Memory: 25kB
+        ->  Index Scan using event_actor_idx on event  (cost=0.29..8.30 rows=1 width=54) (actual time=0.023..0.024 rows=0 loops=1)
+              Index Cond: (((actor_type)::text = 'user'::text) AND (actor_id = '489bb75e-9327-44e1-a644-0cfeffc787e3'::uuid))
+Planning Time: 0.085 ms
+Execution Time: 0.104 ms

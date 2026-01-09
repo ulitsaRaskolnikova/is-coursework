@@ -1,0 +1,4 @@
+Index Scan using auth_factor_user_id_idx on auth_factor  (cost=0.42..8.44 rows=1 width=43) (actual time=0.137..0.137 rows=0 loops=1)
+  Index Cond: (user_id = '88b30e7d-8475-4bad-aeaa-6a11e33c5921'::uuid)
+Planning Time: 0.488 ms
+Execution Time: 0.159 ms

@@ -1,0 +1,7 @@
+Sort  (cost=8.31..8.32 rows=1 width=36) (actual time=0.582..0.582 rows=0 loops=1)
+  Sort Key: created_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Index Scan using refund_op_id_idx on refund  (cost=0.29..8.30 rows=1 width=36) (actual time=0.569..0.569 rows=0 loops=1)
+        Index Cond: (payment_operation_id = '8b0102f1-40ca-42a3-8dc0-e57fc1df777c'::uuid)
+Planning Time: 0.915 ms
+Execution Time: 0.632 ms

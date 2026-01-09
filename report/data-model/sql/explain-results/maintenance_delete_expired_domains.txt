@@ -1,0 +1,14 @@
+Limit  (cost=20520.05..20529.62 rows=82 width=36) (actual time=43.427..45.906 rows=0 loops=1)
+  ->  Gather Merge  (cost=20520.05..20529.62 rows=82 width=36) (actual time=43.416..45.895 rows=0 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        ->  Sort  (cost=19520.03..19520.13 rows=41 width=36) (actual time=37.791..37.792 rows=0 loops=3)
+              Sort Key: expires_at
+              Sort Method: quicksort  Memory: 25kB
+              Worker 0:  Sort Method: quicksort  Memory: 25kB
+              Worker 1:  Sort Method: quicksort  Memory: 25kB
+              ->  Parallel Seq Scan on domain  (cost=0.00..19518.93 rows=41 width=36) (actual time=37.508..37.508 rows=0 loops=3)
+                    Filter: (expires_at < now())
+                    Rows Removed by Filter: 333330
+Planning Time: 0.531 ms
+Execution Time: 45.978 ms

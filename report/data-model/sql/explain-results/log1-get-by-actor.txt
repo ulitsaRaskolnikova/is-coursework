@@ -1,0 +1,9 @@
+Limit  (cost=274.01..274.01 rows=1 width=54) (actual time=3.404..3.405 rows=0 loops=1)
+  ->  Sort  (cost=274.01..274.01 rows=1 width=54) (actual time=3.403..3.404 rows=0 loops=1)
+        Sort Key: at DESC
+        Sort Method: quicksort  Memory: 25kB
+        ->  Seq Scan on event  (cost=0.00..274.00 rows=1 width=54) (actual time=3.391..3.391 rows=0 loops=1)
+              Filter: (((actor_type)::text = 'user'::text) AND (actor_id = '5109bc19-175d-441a-9da7-c2ac7e92f708'::uuid))
+              Rows Removed by Filter: 10000
+Planning Time: 0.677 ms
+Execution Time: 3.469 ms

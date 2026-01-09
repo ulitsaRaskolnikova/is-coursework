@@ -1,0 +1,7 @@
+Sort  (cost=8.45..8.45 rows=1 width=20) (actual time=0.986..0.987 rows=0 loops=1)
+  Sort Key: created_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Index Scan using payment_status_op_id_idx on payment_status  (cost=0.42..8.44 rows=1 width=20) (actual time=0.975..0.975 rows=0 loops=1)
+        Index Cond: (payment_operation_id = '8b0102f1-40ca-42a3-8dc0-e57fc1df777c'::uuid)
+Planning Time: 0.702 ms
+Execution Time: 1.031 ms

@@ -1,0 +1,8 @@
+Delete on user_session  (cost=24.13..1853.39 rows=0 width=0) (actual time=3.552..3.553 rows=0 loops=1)
+  ->  Bitmap Heap Scan on user_session  (cost=24.13..1853.39 rows=1011 width=6) (actual time=0.348..1.195 rows=7018 loops=1)
+        Recheck Cond: (expires_at < now())
+        Heap Blocks: exact=192
+        ->  Bitmap Index Scan on user_session_expires_at_idx  (cost=0.00..23.88 rows=1011 width=0) (actual time=0.326..0.327 rows=7043 loops=1)
+              Index Cond: (expires_at < now())
+Planning Time: 0.121 ms
+Execution Time: 3.600 ms

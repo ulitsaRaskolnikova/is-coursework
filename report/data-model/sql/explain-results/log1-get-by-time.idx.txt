@@ -1,0 +1,12 @@
+Limit  (cost=2402.36..2404.86 rows=1000 width=78) (actual time=4.807..4.889 rows=1000 loops=1)
+  ->  Sort  (cost=2402.36..2429.07 rows=10685 width=78) (actual time=4.806..4.839 rows=1000 loops=1)
+        Sort Key: at DESC
+        Sort Method: top-N heapsort  Memory: 314kB
+        ->  Bitmap Heap Scan on event  (cost=14.74..1816.51 rows=10685 width=78) (actual time=0.221..2.192 rows=10000 loops=1)
+              Recheck Cond: ((at >= '2025-11-16 00:00:00+03'::timestamp with time zone) AND (at < '2025-12-18 00:00:00+03'::timestamp with time zone))
+              Rows Removed by Index Recheck: 6305
+              Heap Blocks: lossy=256
+              ->  Bitmap Index Scan on event_at_idx  (cost=0.00..12.06 rows=15385 width=0) (actual time=0.162..0.163 rows=2560 loops=1)
+                    Index Cond: ((at >= '2025-11-16 00:00:00+03'::timestamp with time zone) AND (at < '2025-12-18 00:00:00+03'::timestamp with time zone))
+Planning Time: 1.605 ms
+Execution Time: 5.148 ms

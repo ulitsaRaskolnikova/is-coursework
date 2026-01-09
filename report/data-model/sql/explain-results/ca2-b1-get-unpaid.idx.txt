@@ -1,0 +1,8 @@
+Sort  (cost=8.45..8.46 rows=1 width=36) (actual time=0.859..0.860 rows=0 loops=1)
+  Sort Key: created_at DESC
+  Sort Method: quicksort  Memory: 25kB
+  ->  Index Scan using app_order_user_id_idx on app_order  (cost=0.42..8.44 rows=1 width=36) (actual time=0.847..0.847 rows=0 loops=1)
+        Index Cond: (user_id = '8b0102f1-40ca-42a3-8dc0-e57fc1df777c'::uuid)
+        Filter: ((paid_at IS NULL) AND (created_at >= (now() - '00:10:00'::interval)))
+Planning Time: 1.694 ms
+Execution Time: 0.909 ms
