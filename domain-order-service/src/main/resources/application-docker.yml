@@ -1,5 +1,5 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres:5432/domain_order_db
+    url: jdbc:postgresql://postgres-domain-order:5432/domain_order_db
     username: postgres
     password: postgres

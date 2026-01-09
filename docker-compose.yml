@@ -34,13 +34,13 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
-      - postgres
+      - postgres-domain-order
     networks:
       - domain-registrar-network
 
-  postgres:
+  postgres-domain-order:
     image: postgres:15-alpine
-    container_name: postgres
+    container_name: postgres-domain-order
     environment:
       POSTGRES_DB: domain_order_db
       POSTGRES_USER: postgres
@@ -48,13 +48,13 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-domain-order-data:/var/lib/postgresql/data
     networks:
       - domain-registrar-network
 
 volumes:
   redis-data:
-  postgres-data:
+  postgres-domain-order-data:
 
 networks:
   domain-registrar-network:
