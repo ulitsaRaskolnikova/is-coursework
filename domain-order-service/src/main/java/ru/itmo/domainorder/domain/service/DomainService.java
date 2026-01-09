@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.domainorder.domain.dto.CreateDomainRequest;
 import ru.itmo.domainorder.domain.dto.DomainResponse;
+import ru.itmo.domainorder.domain.dto.DomainSearchResult;
 import ru.itmo.domainorder.domain.dto.UpdateDomainRequest;
 import ru.itmo.domainorder.domain.entity.Domain;
 import ru.itmo.domainorder.domain.entity.DomainMember;
@@ -20,6 +21,10 @@ import ru.itmo.domainorder.zone.entity.Zone;
 import ru.itmo.domainorder.zone.exception.ZoneNotFoundException;
 import ru.itmo.domainorder.zone.repository.ZoneRepository;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -120,6 +125,29 @@ public class DomainService {
             member.setRole(DomainMemberRole.OWNER);
             domainMemberRepository.save(member);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<DomainSearchResult> searchDomains(String query) {
+        List<Zone> zones = zoneRepository.findAll();
+        
+        String pattern = query + ".%";
+        Set<String> existingFqdns = new HashSet<>(domainRepository.findFqdnsByPattern(pattern));
+        
+        List<DomainSearchResult> results = new ArrayList<>();
+        
+        for (Zone zone : zones) {
+            String fqdn = query + "." + zone.getName();
+            boolean exists = existingFqdns.contains(fqdn);
+            
+            DomainSearchResult result = new DomainSearchResult();
+            result.setFqdn(fqdn);
+            result.setFree(!exists);
+            result.setPrice(zone.getPrice());
+            results.add(result);
+        }
+        
+        return results;
     }
 
     private void validateUserExists(UUID userId) {
