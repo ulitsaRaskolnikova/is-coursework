@@ -61,6 +61,10 @@ services:
       - "8085:8085"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - MAIL_HOST=${MAIL_HOST:-smtp.yandex.ru}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     depends_on:
       - postgres-notification
     networks:
