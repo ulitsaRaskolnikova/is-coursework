@@ -52,6 +52,34 @@ services:
     networks:
       - domain-registrar-network
 
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-auth
+    networks:
+      - domain-registrar-network
+
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: postgres-auth
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - domain-registrar-network
+
   notification-service:
     build:
       context: .
@@ -87,6 +115,7 @@ services:
 volumes:
   redis-data:
   postgres-domain-order-data:
+  postgres-auth-data:
   postgres-notification-data:
 
 networks:
