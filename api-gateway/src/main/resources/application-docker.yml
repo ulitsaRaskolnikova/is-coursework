@@ -12,7 +12,7 @@ spring:
         - id: domain-service
           uri: http://domain-order-service:8082
           predicates:
-            - Path=/api/domains/**, /api/orders/**, /api/zones/**
+            - Path=/api/domains/**, /api/orders/**, /api/zones/**, /api/cart/**
           filters:
             - StripPrefix=1
         
