@@ -52,9 +52,13 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(UUID id) {
+    public OrderResponse getOrderById(UUID id, UUID userId) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found with id: " + id));
+        
+        if (!order.getUserId().equals(userId)) {
+            throw new OrderNotFoundException("Order not found with id: " + id);
+        }
         
         List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
         List<OrderItemResponse> itemResponses = orderMapper.toResponseList(items);
@@ -64,8 +68,6 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, UUID userId) {
-        validateUserExists(userId);
-        
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new CartNotFoundException("Cart not found for user: " + userId));
 
@@ -136,9 +138,5 @@ public class OrderService {
                     // TODO: Create domain if action is 'register', or throw exception if action is 'renew'
                     throw new IllegalArgumentException("Domain not found for FQDN: " + cartItem.getFqdn());
                 });
-    }
-
-    private void validateUserExists(UUID userId) {
-        // TODO: Validate user exists via Auth Service API call
     }
 }
