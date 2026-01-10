@@ -2,13 +2,9 @@ package ru.itmo.notification.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import ru.itmo.common.notification.NotificationType;
 import ru.itmo.common.notification.SendNotificationRequest;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -16,16 +12,10 @@ import java.util.UUID;
 public class NotificationService {
 
     private final EmailService emailService;
-    private final RestTemplate restTemplate;
-    
-    @Value("${services.auth.url}")
-    private String authServiceUrl;
 
-    public void sendNotification(SendNotificationRequest request) {
-        String userEmail = getUserEmail(request.getUserId());
-        
+    public void sendNotification(SendNotificationRequest request, String userEmail) {
         if (userEmail == null || userEmail.isEmpty()) {
-            log.warn("User email not found for userId: {}", request.getUserId());
+            log.warn("User email is null or empty");
             throw new IllegalArgumentException("User email not found");
         }
 
@@ -39,18 +29,6 @@ public class NotificationService {
             subject,
             request.getParameters()
         );
-    }
-
-    private String getUserEmail(UUID userId) {
-        try {
-            String url = authServiceUrl + "/users/" + userId + "/email";
-            String email = restTemplate.getForObject(url, String.class);
-            log.debug("Retrieved email for userId {}: {}", userId, email);
-            return email;
-        } catch (Exception e) {
-            log.error("Failed to get user email for userId: {}", userId, e);
-            return null;
-        }
     }
 
     private String getDefaultSubject(NotificationType type) {
