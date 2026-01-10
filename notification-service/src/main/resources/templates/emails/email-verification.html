@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Подтверждение email</title>
+</head>
+<body>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Подтверждение email адреса</h2>
+        <p>Здравствуйте!</p>
+        <p>Спасибо за регистрацию. Для завершения регистрации необходимо подтвердить ваш email адрес.</p>
+        <p>Пожалуйста, перейдите по ссылке ниже для подтверждения:</p>
+        <p style="text-align: center; margin: 30px 0;">
+            <a th:href="${verificationLink}" 
+               style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+                Подтвердить email
+            </a>
+        </p>
+        <p style="color: #666; font-size: 12px;">
+            Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
+        </p>
+    </div>
+</body>
+</html>

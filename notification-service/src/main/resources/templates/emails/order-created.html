@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ создан</title>
+</head>
+<body>
+    <h2>Заказ успешно создан</h2>
+    <p>Здравствуйте!</p>
+    <p>Ваш заказ был успешно создан.</p>
+    <p th:if="${orderId}">Номер заказа: <strong th:text="${orderId}"></strong></p>
+    <p th:if="${totalAmount}">Сумма заказа: <strong th:text="${totalAmount}"></strong> руб.</p>
+    <p>Для оплаты заказа перейдите по ссылке в личном кабинете.</p>
+    <p>С уважением,<br>Команда Domain Registrar</p>
+</body>
+</html>

@@ -1,0 +1,26 @@
+package ru.itmo.common.notification;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.Map;
+import java.util.UUID;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class SendNotificationRequest {
+    @NotNull(message = "User ID is required")
+    private UUID userId;
+    
+    @NotNull(message = "Notification type is required")
+    private NotificationType type;
+    
+    private String subject;
+    private String template;
+    private Map<String, Object> parameters;
+}

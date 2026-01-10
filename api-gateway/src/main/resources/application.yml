@@ -1,0 +1,69 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**, /api/users/**
+          filters:
+            - StripPrefix=2
+        
+        - id: domain-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/domains/**, /api/orders/**, /api/zones/**, /api/cart/**
+          filters:
+            - StripPrefix=2
+        
+        - id: payment-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=2
+        
+        - id: dns-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/dns/**
+          filters:
+            - StripPrefix=2
+        
+        - id: notification-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=2
+        
+        - id: admin-service
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - StripPrefix=2
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    ru.itmo: INFO
