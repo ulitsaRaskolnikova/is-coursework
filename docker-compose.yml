@@ -8,7 +8,7 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - API_GATEWAY_STRIP_PREFIX=${API_GATEWAY_STRIP_PREFIX}
+      - API_GATEWAY_STRIP_PREFIX=${API_GATEWAY_STRIP_PREFIX:-1}
     depends_on:
       - redis
     networks:
