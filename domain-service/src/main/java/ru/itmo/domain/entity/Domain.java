@@ -22,6 +22,9 @@ public class Domain {
     @Column(name = "domain_part", nullable = false)
     private String domainPart;
 
+    @Column(name = "domain_version")
+    private Long domainVersion;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Domain parent;

@@ -38,6 +38,7 @@ services:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - EXDNS_API_TOKEN=${EXDNS_API_TOKEN:-changeme}
     depends_on:
       - postgres-domain
     networks:
