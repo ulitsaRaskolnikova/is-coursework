@@ -19,6 +19,7 @@ openApiGenerate {
     apiPackage.set("ru.itmo.domain.generated.api")
     modelPackage.set("ru.itmo.domain.generated.model")
     invokerPackage.set("ru.itmo.domain.generated")
+    typeMappings.set(mapOf("DnsRecordType" to "String"))
     configOptions.set(
         mapOf(
             "library" to "spring-boot",
@@ -32,18 +33,6 @@ openApiGenerate {
     )
 }
 
-val fixDiscriminatorType = tasks.register("fixDiscriminatorType") {
-    doLast {
-        val genDir = project.layout.buildDirectory.get().asFile.resolve("generated/openapi/src/main/java/ru/itmo/domain/generated/model")
-        listOf("DnsRecord.java", "DnsRecordResponse.java").forEach { fileName ->
-            val file = genDir.resolve(fileName)
-            if (file.exists()) {
-                file.writeText(file.readText().replace("public String getType()", "public DnsRecordType getType()"))
-            }
-        }
-    }
-}
-tasks.named("openApiGenerate") { finalizedBy(fixDiscriminatorType) }
 tasks.named("compileJava") {
     dependsOn("openApiGenerate")
 }
