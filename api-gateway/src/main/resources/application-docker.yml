@@ -23,9 +23,9 @@ spring:
             - StripPrefix=${API_GATEWAY_STRIP_PREFIX:1}
         
         - id: domain-service
-          uri: http://domain-order-service:8082
+          uri: http://domain-service:8082
           predicates:
-            - Path=/api/domains/**, /api/orders/**, /api/zones/**, /api/cart/**, /api/dns/**
+            - Path=/api/domains/**, /api/health
           filters:
             - StripPrefix=${API_GATEWAY_STRIP_PREFIX:1}
         
