@@ -1,3 +1,5 @@
+name: is-coursework
+
 services:
   api-gateway:
     build:
@@ -119,11 +121,32 @@ services:
     networks:
       - domain-registrar-network
 
+  exdns:
+    build:
+      context: ./exdns
+      dockerfile: Dockerfile
+    container_name: exdns
+    ports:
+      - "5354:5353/udp"
+      - "8000:8000"
+    environment:
+      API_TOKEN: ${EXDNS_API_TOKEN:-changeme}
+      DNS_PORT: "5353"
+      HTTP_PORT: "8000"
+      ZONES_FOLDER: "/data/zones"
+      REPLICATION_QUORUM: "0.5"
+      REPLICATION_TIMEOUT_MS: "2000"
+    volumes:
+      - exdns-zones-data:/data/zones
+    networks:
+      - domain-registrar-network
+
 volumes:
   redis-data:
   postgres-domain-data:
   postgres-auth-data:
   postgres-notification-data:
+  exdns-zones-data:
 
 networks:
   domain-registrar-network:
