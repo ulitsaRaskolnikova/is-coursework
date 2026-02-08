@@ -2,10 +2,13 @@ package ru.itmo.domain.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class DuplicateL2DomainExceptionHandler {
@@ -20,8 +23,38 @@ public class DuplicateL2DomainExceptionHandler {
     }
 
     @ExceptionHandler(L2DomainNotFoundException.class)
-    public ResponseEntity<List<String>> handleL2DomainNotFound(L2DomainNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(List.of(ex.getMessage()));
+    public ResponseEntity<String> handleL2DomainNotFound(L2DomainNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<List<String>> handleValidation(MethodArgumentNotValidException ex) {
+        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getField() + ": " + (e.getDefaultMessage() != null ? e.getDefaultMessage() : e.getCode()))
+                .collect(Collectors.toList());
+        if (errors.isEmpty()) {
+            errors = ex.getBindingResult().getGlobalErrors().stream()
+                    .map(e -> e.getDefaultMessage() != null ? e.getDefaultMessage() : e.getCode())
+                    .collect(Collectors.toList());
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<List<String>> handleMethodValidation(HandlerMethodValidationException ex) {
+        List<String> errors = ex.getAllValidationResults().stream()
+                .flatMap(r -> r.getResolvableErrors().stream())
+                .map(err -> err.getDefaultMessage() != null ? err.getDefaultMessage() : (err.getCodes() != null && err.getCodes().length > 0 ? err.getCodes()[0] : "validation failed"))
+                .collect(Collectors.toList());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<List<String>> handleMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        if (message == null) {
+            message = "Invalid request body";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(List.of(message));
     }
 }
