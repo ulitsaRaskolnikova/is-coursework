@@ -19,6 +19,7 @@ import ru.itmo.domain.service.DnsRecordService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class DnsRecordServiceImpl implements DnsRecordService {
@@ -70,6 +71,17 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         syncZoneToExdns(name);
 
         return toDnsRecordResponse(recordData, entity.getId());
+    }
+
+    @Override
+    public List<DnsRecordResponse> getDnsRecords(String l2Domain) {
+        String name = l2Domain == null ? null : l2Domain.trim();
+        Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
+                .orElseThrow(() -> new L2DomainNotFoundException(name));
+        return dnsRecordRepository.findByDomainId(domain.getId()).stream()
+                .filter(rec -> rec.getRecordData() != null && !rec.getRecordData().isBlank())
+                .map(rec -> toDnsRecordResponse(rec.getRecordData(), rec.getId()))
+                .collect(Collectors.toList());
     }
 
     @Override
