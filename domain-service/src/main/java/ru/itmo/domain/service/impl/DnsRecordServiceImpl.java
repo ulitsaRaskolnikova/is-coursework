@@ -85,6 +85,28 @@ public class DnsRecordServiceImpl implements DnsRecordService {
 
     @Override
     @Transactional
+    public DnsRecordResponse updateById(Long id, ru.itmo.domain.generated.model.DnsRecord dnsRecord) {
+        DnsRecord entity = dnsRecordRepository.findById(id)
+                .orElseThrow(() -> new DnsRecordNotFoundException(id));
+        Domain domain = entity.getDomain();
+        if (domain == null) {
+            throw new DnsRecordNotFoundException(id);
+        }
+        String l2DomainName = domain.getDomainPart();
+        JsonNode tree = objectMapper.valueToTree(dnsRecord);
+        String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
+        if (bodyName == null || !l2DomainName.equals(bodyName)) {
+            throw new DnsRecordNameMismatchException(l2DomainName, bodyName);
+        }
+        String recordData = tree.toString();
+        entity.setRecordData(recordData);
+        entity = dnsRecordRepository.save(entity);
+        syncZoneToExdns(l2DomainName);
+        return toDnsRecordResponse(recordData, entity.getId());
+    }
+
+    @Override
+    @Transactional
     public void deleteById(Long id) {
         DnsRecord entity = dnsRecordRepository.findById(id)
                 .orElseThrow(() -> new DnsRecordNotFoundException(id));
