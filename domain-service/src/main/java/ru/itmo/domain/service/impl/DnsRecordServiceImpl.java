@@ -14,6 +14,7 @@ import ru.itmo.domain.entity.Domain;
 import ru.itmo.domain.exception.DnsRecordNameMismatchException;
 import ru.itmo.domain.exception.DnsRecordNotFoundException;
 import ru.itmo.domain.exception.L2DomainNotFoundException;
+import ru.itmo.domain.exception.L3DomainNotFoundException;
 import ru.itmo.domain.generated.model.DnsRecordResponse;
 import ru.itmo.domain.repository.DomainRepository;
 import ru.itmo.domain.repository.DnsRecordRepository;
@@ -163,6 +164,38 @@ public class DnsRecordServiceImpl implements DnsRecordService {
     }
 
     @Override
+    @Transactional
+    public DnsRecordResponse createDnsRecordForL3(String l3Domain, ru.itmo.domain.generated.model.DnsRecord dnsRecord) {
+        String l3Name = l3Domain == null ? null : l3Domain.trim();
+        int firstDot = l3Name == null ? -1 : l3Name.indexOf('.');
+        if (firstDot <= 0 || firstDot == l3Name.length() - 1) {
+            throw new DnsRecordNameMismatchException(l3Name, l3Name);
+        }
+        String l3Part = l3Name.substring(0, firstDot);
+        String l2Name = l3Name.substring(firstDot + 1);
+
+        JsonNode tree = objectMapper.valueToTree(dnsRecord);
+        String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
+        if (bodyName == null || !l3Name.equals(bodyName)) {
+            throw new DnsRecordNameMismatchException(l3Name, bodyName);
+        }
+
+        Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
+                .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
+        Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
+                .orElseThrow(() -> new L3DomainNotFoundException(l3Name));
+
+        String recordData = tree.toString();
+        DnsRecord entity = new DnsRecord();
+        entity.setRecordData(recordData);
+        entity.setDomain(l3);
+        entity = dnsRecordRepository.save(entity);
+
+        syncL3ZoneToExdns(l3Name);
+        return toDnsRecordResponse(recordData, entity.getId());
+    }
+
+    @Override
     public List<String> getFreeL3Domains(String name) {
         String l3Part = name == null ? null : name.trim();
         if (l3Part == null || l3Part.isBlank()) {
@@ -214,7 +247,11 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         String recordData = tree.toString();
         entity.setRecordData(recordData);
         entity = dnsRecordRepository.save(entity);
-        syncZoneToExdns(getL2DomainName(domain));
+        if (domain.getParent() == null) {
+            syncZoneToExdns(domain.getDomainPart());
+        } else {
+            syncL3ZoneToExdns(getFullDomainName(domain));
+        }
         return toDnsRecordResponse(recordData, entity.getId());
     }
 
@@ -227,9 +264,12 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (domain == null) {
             throw new DnsRecordNotFoundException(id);
         }
-        String l2DomainName = getL2DomainName(domain);
         dnsRecordRepository.delete(entity);
-        syncZoneToExdns(l2DomainName);
+        if (domain.getParent() == null) {
+            syncZoneToExdns(domain.getDomainPart());
+        } else {
+            syncL3ZoneToExdns(getFullDomainName(domain));
+        }
     }
 
     @Override
@@ -249,12 +289,7 @@ public class DnsRecordServiceImpl implements DnsRecordService {
             currentVersion = domain.getDomainVersion() == null ? 1L : domain.getDomainVersion();
         }
 
-        List<Long> zoneDomainIds = new ArrayList<>();
-        zoneDomainIds.add(domain.getId());
-        zoneDomainIds.addAll(domainRepository.findByParentId(domain.getId()).stream()
-                .map(Domain::getId)
-                .collect(Collectors.toList()));
-        List<DnsRecord> records = dnsRecordRepository.findByDomainIdIn(zoneDomainIds);
+        List<DnsRecord> records = dnsRecordRepository.findByDomainId(domain.getId());
         ArrayNode recordsArray = objectMapper.createArrayNode();
         for (DnsRecord rec : records) {
             if (rec.getRecordData() != null && !rec.getRecordData().isBlank()) {
@@ -275,6 +310,53 @@ public class DnsRecordServiceImpl implements DnsRecordService {
 
         domain.setDomainVersion(currentVersion + 1);
         domainRepository.save(domain);
+    }
+
+    @Transactional
+    public void syncL3ZoneToExdns(String l3DomainName) {
+        String name = l3DomainName == null ? null : l3DomainName.trim();
+        int firstDot = name == null ? -1 : name.indexOf('.');
+        if (firstDot <= 0 || firstDot == name.length() - 1) {
+            throw new L3DomainNotFoundException(name);
+        }
+        String l3Part = name.substring(0, firstDot);
+        String l2Name = name.substring(firstDot + 1);
+        Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
+                .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
+        Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
+                .orElseThrow(() -> new L3DomainNotFoundException(name));
+
+        long currentVersion;
+        try {
+            JsonNode existingZone = exdnsClient.getZoneBody(name);
+            currentVersion = existingZone != null && existingZone.has("version")
+                    ? existingZone.get("version").asLong()
+                    : 1L;
+        } catch (ru.itmo.domain.client.ExdnsClientException e) {
+            currentVersion = l3.getDomainVersion() == null ? 1L : l3.getDomainVersion();
+        }
+
+        List<DnsRecord> records = dnsRecordRepository.findByDomainId(l3.getId());
+        ArrayNode recordsArray = objectMapper.createArrayNode();
+        for (DnsRecord rec : records) {
+            if (rec.getRecordData() != null && !rec.getRecordData().isBlank()) {
+                try {
+                    JsonNode node = objectMapper.readTree(rec.getRecordData());
+                    recordsArray.add(node);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        ObjectNode zoneBody = objectMapper.createObjectNode();
+        zoneBody.put("name", name);
+        zoneBody.put("version", currentVersion);
+        zoneBody.set("records", recordsArray);
+
+        exdnsClient.replaceZone(name, zoneBody);
+
+        l3.setDomainVersion(currentVersion + 1);
+        domainRepository.save(l3);
     }
 
     private static String getL2DomainName(Domain domain) {
