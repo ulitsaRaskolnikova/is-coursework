@@ -157,6 +157,15 @@ public class UserDomainServiceImpl implements UserDomainService {
         return renewedDomains;
     }
 
+    @Override
+    @Transactional
+    public long deleteExpiredDomains() {
+        List<Domain> expired = domainRepository.findByParentIsNotNullAndFinishedAtBefore(LocalDateTime.now());
+        long count = expired.size();
+        domainRepository.deleteAll(expired);
+        return count;
+    }
+
     private LocalDateTime calculateFinishedAt(LocalDateTime from, DomainPeriod period) {
         return switch (period) {
             case MONTH -> from.plusMonths(1);
