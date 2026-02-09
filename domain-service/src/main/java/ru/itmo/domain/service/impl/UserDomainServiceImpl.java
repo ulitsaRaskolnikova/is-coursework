@@ -22,6 +22,27 @@ public class UserDomainServiceImpl implements UserDomainService {
     }
 
     @Override
+    public List<String> getUserDomains() {
+        UUID userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalStateException("User ID not found in security context");
+        }
+        
+        List<Domain> l3Domains = domainRepository.findByUserIdAndParentIsNotNull(userId);
+        List<String> result = new ArrayList<>();
+        
+        for (Domain l3Domain : l3Domains) {
+            Domain l2Domain = l3Domain.getParent();
+            if (l2Domain != null) {
+                String fullDomainName = l3Domain.getDomainPart() + "." + l2Domain.getDomainPart();
+                result.add(fullDomainName);
+            }
+        }
+        
+        return result;
+    }
+
+    @Override
     @Transactional
     public List<String> createUserDomains(List<String> l3Domains) {
         UUID userId = SecurityUtil.getCurrentUserId();
