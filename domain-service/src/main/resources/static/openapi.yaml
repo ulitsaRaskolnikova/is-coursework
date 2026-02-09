@@ -11,7 +11,7 @@ info:
     url: https://github.com/ulitsaRaskolnikova
     email: malyshev.2005n@gmail.com
 servers:
-  - url: http://localhost:8082/api/v1
+  - url: http://localhost:8082/domains
     description: Dev server
 
 paths:

@@ -17,7 +17,7 @@ spring:
         - id: domain-service
           uri: http://localhost:8082
           predicates:
-            - Path=/api/domains/**, /api/orders/**, /api/zones/**, /api/cart/**, /api/dns/**
+            - Path=/api/domains/**
           filters:
             - StripPrefix=1
         
