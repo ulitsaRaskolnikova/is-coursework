@@ -85,6 +85,20 @@ public class DnsRecordServiceImpl implements DnsRecordService {
 
     @Override
     @Transactional
+    public void deleteById(Long id) {
+        DnsRecord entity = dnsRecordRepository.findById(id)
+                .orElseThrow(() -> new DnsRecordNotFoundException(id));
+        Domain domain = entity.getDomain();
+        if (domain == null) {
+            throw new DnsRecordNotFoundException(id);
+        }
+        String l2DomainName = domain.getDomainPart();
+        dnsRecordRepository.delete(entity);
+        syncZoneToExdns(l2DomainName);
+    }
+
+    @Override
+    @Transactional
     public void syncZoneToExdns(String l2Domain) {
         String name = l2Domain == null ? null : l2Domain.trim();
         Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
