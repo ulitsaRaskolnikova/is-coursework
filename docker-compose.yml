@@ -167,6 +167,34 @@ services:
     networks:
       - domain-registrar-network
 
+  audit-service:
+    build:
+      context: .
+      dockerfile: audit-service/Dockerfile
+    container_name: audit-service
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-audit
+    networks:
+      - domain-registrar-network
+
+  postgres-audit:
+    image: postgres:15-alpine
+    container_name: postgres-audit
+    environment:
+      POSTGRES_DB: audit_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-audit-data:/var/lib/postgresql/data
+    networks:
+      - domain-registrar-network
+
   exdns:
     build:
       context: ./exdns
@@ -193,6 +221,7 @@ volumes:
   postgres-auth-data:
   postgres-notification-data:
   postgres-order-data:
+  postgres-audit-data:
   exdns-zones-data:
 
 networks:
