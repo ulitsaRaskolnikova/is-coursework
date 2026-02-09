@@ -18,7 +18,7 @@ spring:
         - id: auth-service
           uri: http://auth-service:8081
           predicates:
-            - Path=/api/auth/**
+            - Path=/api/auth/**,/api/users/**
           filters:
             - StripPrefix=${API_GATEWAY_STRIP_PREFIX:1}
         
