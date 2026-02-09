@@ -17,6 +17,7 @@ import ru.itmo.domain.repository.DomainRepository;
 import ru.itmo.domain.repository.DnsRecordRepository;
 import ru.itmo.domain.service.DnsRecordService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -74,6 +75,45 @@ public class DnsRecordServiceImpl implements DnsRecordService {
     }
 
     @Override
+    @Transactional
+    public DnsRecordResponse createL3Domain(String l3Domain, ru.itmo.domain.generated.model.DnsRecord dnsRecord) {
+        String l3Name = l3Domain == null ? null : l3Domain.trim();
+        int firstDot = l3Name == null ? -1 : l3Name.indexOf('.');
+        if (firstDot <= 0 || firstDot == l3Name.length() - 1) {
+            throw new DnsRecordNameMismatchException(l3Name, l3Name);
+        }
+        String l3Part = l3Name.substring(0, firstDot);
+        String l2Name = l3Name.substring(firstDot + 1);
+
+        JsonNode tree = objectMapper.valueToTree(dnsRecord);
+        String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
+        if (bodyName == null || !l3Name.equals(bodyName)) {
+            throw new DnsRecordNameMismatchException(l3Name, bodyName);
+        }
+
+        Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
+                .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
+
+        Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
+                .orElseGet(() -> {
+                    Domain child = new Domain();
+                    child.setDomainPart(l3Part);
+                    child.setParent(l2);
+                    child.setDomainVersion(1L);
+                    return domainRepository.save(child);
+                });
+
+        String recordData = tree.toString();
+        DnsRecord entity = new DnsRecord();
+        entity.setRecordData(recordData);
+        entity.setDomain(l3);
+        entity = dnsRecordRepository.save(entity);
+
+        syncZoneToExdns(l2Name);
+        return toDnsRecordResponse(recordData, entity.getId());
+    }
+
+    @Override
     public List<DnsRecordResponse> getDnsRecords(String l2Domain) {
         String name = l2Domain == null ? null : l2Domain.trim();
         Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
@@ -113,7 +153,7 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         String recordData = tree.toString();
         entity.setRecordData(recordData);
         entity = dnsRecordRepository.save(entity);
-        syncZoneToExdns(l2DomainName);
+        syncZoneToExdns(getL2DomainName(domain));
         return toDnsRecordResponse(recordData, entity.getId());
     }
 
@@ -126,7 +166,7 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (domain == null) {
             throw new DnsRecordNotFoundException(id);
         }
-        String l2DomainName = domain.getDomainPart();
+        String l2DomainName = getL2DomainName(domain);
         dnsRecordRepository.delete(entity);
         syncZoneToExdns(l2DomainName);
     }
@@ -148,7 +188,12 @@ public class DnsRecordServiceImpl implements DnsRecordService {
             currentVersion = domain.getDomainVersion() == null ? 1L : domain.getDomainVersion();
         }
 
-        List<DnsRecord> records = dnsRecordRepository.findByDomainId(domain.getId());
+        List<Long> zoneDomainIds = new ArrayList<>();
+        zoneDomainIds.add(domain.getId());
+        zoneDomainIds.addAll(domainRepository.findByParentId(domain.getId()).stream()
+                .map(Domain::getId)
+                .collect(Collectors.toList()));
+        List<DnsRecord> records = dnsRecordRepository.findByDomainIdIn(zoneDomainIds);
         ArrayNode recordsArray = objectMapper.createArrayNode();
         for (DnsRecord rec : records) {
             if (rec.getRecordData() != null && !rec.getRecordData().isBlank()) {
@@ -169,6 +214,14 @@ public class DnsRecordServiceImpl implements DnsRecordService {
 
         domain.setDomainVersion(currentVersion + 1);
         domainRepository.save(domain);
+    }
+
+    private static String getL2DomainName(Domain domain) {
+        Domain root = domain;
+        while (root.getParent() != null) {
+            root = root.getParent();
+        }
+        return root.getDomainPart();
     }
 
     private DnsRecordResponse toDnsRecordResponse(String recordData, Long id) {
