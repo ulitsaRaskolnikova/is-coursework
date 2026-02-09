@@ -13,9 +13,11 @@ import ru.itmo.domain.entity.DnsRecord;
 import ru.itmo.domain.entity.Domain;
 import ru.itmo.domain.exception.DnsRecordNameMismatchException;
 import ru.itmo.domain.exception.DnsRecordNotFoundException;
+import ru.itmo.domain.exception.ForbiddenWordException;
 import ru.itmo.domain.exception.L2DomainNotFoundException;
 import ru.itmo.domain.exception.L3DomainNotFoundException;
 import ru.itmo.domain.generated.model.DnsRecordResponse;
+import ru.itmo.domain.repository.BadWordRepository;
 import ru.itmo.domain.repository.DomainRepository;
 import ru.itmo.domain.repository.DnsRecordRepository;
 import ru.itmo.domain.service.DnsRecordService;
@@ -42,15 +44,18 @@ public class DnsRecordServiceImpl implements DnsRecordService {
 
     private final DomainRepository domainRepository;
     private final DnsRecordRepository dnsRecordRepository;
+    private final BadWordRepository badWordRepository;
     private final ExdnsClient exdnsClient;
     private final ObjectMapper objectMapper;
 
     public DnsRecordServiceImpl(DomainRepository domainRepository,
                                 DnsRecordRepository dnsRecordRepository,
+                                BadWordRepository badWordRepository,
                                 ExdnsClient exdnsClient,
                                 ObjectMapper objectMapper) {
         this.domainRepository = domainRepository;
         this.dnsRecordRepository = dnsRecordRepository;
+        this.badWordRepository = badWordRepository;
         this.exdnsClient = exdnsClient;
         this.objectMapper = objectMapper;
     }
@@ -201,6 +206,12 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (l3Part == null || l3Part.isBlank()) {
             return List.of();
         }
+        
+        // Check if the domain name contains forbidden words
+        if (badWordRepository.existsByWordIgnoreCase(l3Part)) {
+            throw new ForbiddenWordException(l3Part);
+        }
+        
         return domainRepository.findAllByParentIsNull().stream()
                 .filter(l2 -> !domainRepository.existsByParentIdAndDomainPart(l2.getId(), l3Part))
                 .map(l2 -> l3Part + "." + l2.getDomainPart())
