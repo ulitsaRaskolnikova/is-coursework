@@ -239,6 +239,35 @@ public class DnsRecordServiceImpl implements DnsRecordService {
     }
 
     @Override
+    public List<DnsRecordResponse> getL3DomainDnsRecords(String l3Domain) {
+        String l3Name = l3Domain == null ? null : l3Domain.trim();
+        int firstDot = l3Name == null ? -1 : l3Name.indexOf('.');
+        if (firstDot <= 0 || firstDot == l3Name.length() - 1) {
+            throw new L3DomainNotFoundException(l3Name);
+        }
+        String l3Part = l3Name.substring(0, firstDot);
+        String l2Name = l3Name.substring(firstDot + 1);
+
+        Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
+                .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
+        Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
+                .orElseThrow(() -> new L3DomainNotFoundException(l3Name));
+
+        // Check permissions: user can only view DNS records for their own domains, admin can view all
+        UUID currentUserId = SecurityUtil.getCurrentUserId();
+        if (!SecurityUtil.isAdmin()) {
+            if (l3.getUserId() == null || !l3.getUserId().equals(currentUserId)) {
+                throw new ForbiddenException("You can only view DNS records for your own domains");
+            }
+        }
+
+        return dnsRecordRepository.findByDomainId(l3.getId()).stream()
+                .filter(rec -> rec.getRecordData() != null && !rec.getRecordData().isBlank())
+                .map(rec -> toDnsRecordResponse(rec.getRecordData(), rec.getId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public DnsRecordResponse getById(Long id) {
         DnsRecord entity = dnsRecordRepository.findById(id)
                 .orElseThrow(() -> new DnsRecordNotFoundException(id));
