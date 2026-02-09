@@ -31,6 +31,10 @@ public class UserService {
         return user.getEmail();
     }
 
+    public long getUserCount() {
+        return userRepository.count();
+    }
+
     private UserResponse mapToUserResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
