@@ -1,4 +1,4 @@
-﻿import { Alert, Button, Heading, HStack, PinInput, Stack } from '@chakra-ui/react';
+import { Alert, Button, Heading, HStack, PinInput, Stack } from '@chakra-ui/react';
 import type { AxiosError } from 'axios';
 import { observer } from 'mobx-react-lite';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -49,10 +49,16 @@ const TFATotpPage = observer(() => {
       }
 
       setTokens({ access: accessToken, refresh: refreshToken });
-      const user = await getUserById(userId);
-      if (user.data) userStore.setUser(user.data);
       authStore.setEmail('');
       authStore.setPassword('');
+
+      try {
+        const user = await getUserById(userId);
+        if (user.data) userStore.setUser(user.data);
+      } catch {
+        // user profile load failed, but auth succeeded
+      }
+
       navigate('/app');
     } catch (e) {
       const apiError = e as AxiosError<{ message?: string }>;

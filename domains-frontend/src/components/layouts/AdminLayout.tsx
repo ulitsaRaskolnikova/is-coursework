@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Grid,
   GridItem,
   Heading,
@@ -12,6 +13,8 @@ import AppLink from '../AppLink';
 import { Outlet, useNavigate } from 'react-router';
 import { refreshToken as apiRefreshToken } from '~/api/services/auth';
 import { getAccessToken, getRefreshToken, setTokens } from '~/utils/authTokens';
+import { isCurrentUserAdmin } from '~/utils/jwtUtils';
+import { ArrowLeft } from 'lucide-react';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -25,6 +28,10 @@ const AdminLayout = () => {
     const ensureAuth = async () => {
       const accessToken = getAccessToken();
       if (accessToken) {
+        if (!isCurrentUserAdmin()) {
+          navigate('/app');
+          return;
+        }
         setIsAuthReady(true);
         return;
       }
@@ -98,7 +105,16 @@ const AdminLayout = () => {
           px={5}
           justifyContent={'flex-end'}
           alignItems={'center'}
+          gap={4}
         >
+          <Button
+            size={'sm'}
+            colorPalette={'secondary'}
+            variant={'subtle'}
+            onClick={() => navigate('/app')}
+          >
+            <ArrowLeft size={16} /> К приложению
+          </Button>
           <AppLink to={'/admin/me'}>администратор</AppLink>
         </HStack>
       </GridItem>

@@ -1,83 +1,57 @@
 import {
-  Button,
-  Grid,
-  GridItem,
   Heading,
   HStack,
+  Spinner,
   Stack,
   Text,
 } from '@chakra-ui/react';
-import React from 'react';
-import DateText from '~/components/DateText';
+import { useEffect, useState } from 'react';
+import { AXIOS_INSTANCE } from '~/api/apiClientDomains';
 
 const FinancesPage = () => {
+  const [domainsCount, setDomainsCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await AXIOS_INSTANCE.get<{
+          activeUsersCount: number;
+          registeredDomainsCount: number;
+        }>('/stats');
+        setDomainsCount(data?.registeredDomainsCount ?? 0);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const monthlyPrice = 200;
+  const monthlyRevenue = (domainsCount ?? 0) * monthlyPrice;
+
   return (
     <Stack gap={5}>
       <Heading>Финансы</Heading>
-      <Stack>
-        <Text>Оборот за месяц: 18514 рублей</Text>
-        <Text>Оборот за неделю: 1321 рублей</Text>
-      </Stack>
-
-      <Stack>
-        <Text>Счета</Text>
-        <Grid
-          templateColumns={'auto auto auto auto auto 1fr'}
-          rowGap={2}
-          columnGap={5}
-          bg={'accent.muted'}
-          p={5}
-          borderRadius={'md'}
-          alignItems={'center'}
-        >
-          <GridItem>
-            <Text fontWeight="bold">пользователь</Text>
-          </GridItem>
-          <GridItem>
-            <Text fontWeight="bold">операция</Text>
-          </GridItem>
-          <GridItem>
-            <Text fontWeight="bold">статус</Text>
-          </GridItem>
-          <GridItem>
-            <Text fontWeight="bold">дата</Text>
-          </GridItem>
-          <GridItem>
-            <Text fontWeight="bold">сумма</Text>
-          </GridItem>
-          <GridItem />
-
-          <GridItem>ivain@zinch.me</GridItem>
-          <GridItem>поступление(карта)</GridItem>
-          <GridItem>совершена</GridItem>
-          <GridItem>
-            <DateText>{new Date()}</DateText>
-          </GridItem>
-          <GridItem>1500 рублей</GridItem>
-          <GridItem>
-            <HStack justifyContent={'flex-end'}>
-              <Button size={'sm'} colorPalette={'red'}>
-                отменить операцию
-              </Button>
-            </HStack>
-          </GridItem>
-
-          <GridItem>ivain@zinch.me</GridItem>
-          <GridItem>поступление(карта)</GridItem>
-          <GridItem>ожидание оплаты</GridItem>
-          <GridItem>
-            <DateText>{new Date()}</DateText>
-          </GridItem>
-          <GridItem>1500 рублей</GridItem>
-          <GridItem>
-            <HStack justifyContent={'flex-end'}>
-              <Button size={'sm'} colorPalette={'secondary'}>
-                пропустить оплату
-              </Button>
-            </HStack>
-          </GridItem>
-        </Grid>
-      </Stack>
+      {loading ? (
+        <HStack><Spinner size={'sm'} /><Text>Загрузка...</Text></HStack>
+      ) : (
+        <Stack bg={'accent.muted'} p={5} borderRadius={'md'} gap={3}>
+          <HStack justifyContent={'space-between'}>
+            <Text fontWeight={'bold'}>Активных доменов</Text>
+            <Text fontSize={'xl'}>{domainsCount ?? '—'}</Text>
+          </HStack>
+          <HStack justifyContent={'space-between'}>
+            <Text fontWeight={'bold'}>Ежемесячный доход (оценка)</Text>
+            <Text fontSize={'xl'}>{monthlyRevenue} ₽</Text>
+          </HStack>
+          <HStack justifyContent={'space-between'}>
+            <Text fontWeight={'bold'}>Годовой доход (оценка)</Text>
+            <Text fontSize={'xl'}>{monthlyRevenue * 12} ₽</Text>
+          </HStack>
+        </Stack>
+      )}
     </Stack>
   );
 };

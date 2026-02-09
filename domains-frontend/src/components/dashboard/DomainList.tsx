@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { DomainResponse } from '../../api/models';
 import { Button, Grid, GridItem, HStack, Text } from '@chakra-ui/react';
 import DateText from '../DateText';
-import { ArrowRight } from 'lucide-react';
 import { ORDER_AXIOS_INSTANCE } from '~/api/apiClientOrders';
 
 type Props = {
@@ -87,9 +86,6 @@ const DomainList = (props: Props) => {
                     </Button>
                   </>
                 )}
-                <Button size={'sm'} colorPalette={'secondary'}>
-                  DNS <ArrowRight />
-                </Button>
               </HStack>
             </GridItem>
           </React.Fragment>

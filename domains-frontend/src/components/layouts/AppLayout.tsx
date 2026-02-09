@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Grid,
   GridItem,
   Heading,
@@ -14,6 +15,8 @@ import { Outlet, useNavigate } from 'react-router';
 import { getAccessToken, getRefreshToken, setTokens } from '~/utils/authTokens';
 import { refreshToken as apiRefreshToken } from '~/api/services/auth';
 import { useStores } from '~/store';
+import { isCurrentUserAdmin } from '~/utils/jwtUtils';
+import { Shield } from 'lucide-react';
 
 const AppLayout = () => {
   const navigate = useNavigate();
@@ -94,8 +97,29 @@ const AppLayout = () => {
           px={5}
           justifyContent={'flex-end'}
           alignItems={'center'}
+          gap={4}
         >
+          {isCurrentUserAdmin() && (
+            <Button
+              size={'sm'}
+              colorPalette={'red'}
+              variant={'subtle'}
+              onClick={() => navigate('/admin')}
+            >
+              <Shield size={16} /> Админ-панель
+            </Button>
+          )}
           <AppLink to={'/app/me'}>пользователь</AppLink>
+          <Button
+            size={'sm'}
+            variant={'ghost'}
+            onClick={() => {
+              setTokens({ access: '', refresh: '' });
+              navigate('/');
+            }}
+          >
+            Выйти
+          </Button>
         </HStack>
       </GridItem>
       <GridItem>
