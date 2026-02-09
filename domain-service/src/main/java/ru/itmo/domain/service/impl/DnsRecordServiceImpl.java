@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.domain.client.ExdnsClient;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class DnsRecordServiceImpl implements DnsRecordService {
+
+    private static final Logger log = LoggerFactory.getLogger(DnsRecordServiceImpl.class);
 
     private static final Map<String, String> RECORD_TYPE_TO_RESPONSE_TYPE = Map.of(
             "DnsRecordA", "DnsRecordResponseA",
@@ -56,9 +60,19 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         String name = l2Domain == null ? null : l2Domain.trim();
         JsonNode tree = objectMapper.valueToTree(dnsRecord);
         String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
-        if (bodyName == null || !name.equals(bodyName)) {
+        String typeStr = tree.has("type") && !tree.get("type").isNull() ? tree.get("type").asText() : null;
+        boolean isNs = "DnsRecordNS".equals(typeStr) || "NS".equals(typeStr);
+
+        if (bodyName == null || bodyName.isBlank()) {
             throw new DnsRecordNameMismatchException(name, bodyName);
         }
+        boolean nameOk = name.equals(bodyName)
+                || (isNs && bodyName.endsWith("." + name) && bodyName.length() > name.length() + 1
+                && !bodyName.substring(0, bodyName.length() - name.length() - 1).contains("."));
+        if (!nameOk) {
+            throw new DnsRecordNameMismatchException(name, bodyName);
+        }
+
         Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
                 .orElseThrow(() -> new L2DomainNotFoundException(name));
 
@@ -70,6 +84,41 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         entity = dnsRecordRepository.save(entity);
 
         syncZoneToExdns(name);
+
+        if (isNs) {
+            log.debug("NS record: processing data field for L3 zone and domain, l2Domain={}", name);
+            String dataValue = tree.has("data") && !tree.get("data").isNull() ? tree.get("data").asText().trim() : null;
+            log.debug("NS record: data value from body = {}", dataValue);
+            if (dataValue != null && !dataValue.isBlank()
+                    && dataValue.endsWith("." + name) && dataValue.length() > name.length() + 1
+                    && !dataValue.substring(0, dataValue.length() - name.length() - 1).contains(".")) {
+                String l3Part = dataValue.substring(0, dataValue.length() - name.length() - 1);
+                log.debug("NS record: L3 part extracted = {}, creating or finding domain in table domain", l3Part);
+                Domain l3 = domainRepository.findByParentIdAndDomainPart(domain.getId(), l3Part)
+                        .orElseGet(() -> {
+                            log.debug("NS record: L3 domain not found, creating new Domain parentId={}, domainPart={}", domain.getId(), l3Part);
+                            Domain child = new Domain();
+                            child.setDomainPart(l3Part);
+                            child.setParent(domain);
+                            child.setDomainVersion(1L);
+                            Domain saved = domainRepository.save(child);
+                            log.debug("NS record: L3 domain saved with id={}", saved.getId());
+                            return saved;
+                        });
+                log.debug("NS record: L3 domain id={} for {}", l3.getId(), dataValue);
+
+                log.debug("NS record: building zone body for exdns name={}, version=1, records=[]", dataValue);
+                ObjectNode zoneBody = objectMapper.createObjectNode();
+                zoneBody.put("name", dataValue);
+                zoneBody.put("version", 1);
+                zoneBody.set("records", objectMapper.createArrayNode());
+                log.debug("NS record: calling exdns createZone for zone name={}", dataValue);
+                exdnsClient.createZone(dataValue, zoneBody);
+                log.debug("NS record: exdns createZone completed for {}", dataValue);
+            } else {
+                log.debug("NS record: data validation failed or skipped (dataValue null/blank or not a single-label subdomain of {}), skipping L3 creation", name);
+            }
+        }
 
         return toDnsRecordResponse(recordData, entity.getId());
     }
