@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { DomainQuery } from '../../api/models/DomainQuery';
 import { Button, Table, Text } from '@chakra-ui/react';
+import { getAccessToken } from '~/utils/authTokens';
 
 type Props = {
   domain: DomainQuery;
@@ -9,6 +10,8 @@ type Props = {
 
 const DomainRow = (props: Props) => {
   const { domain, buttonsFunction } = props;
+  const isLoggedIn = Boolean(getAccessToken());
+
   return (
     <Table.Row>
       <Table.Cell>{domain.fqdn}</Table.Cell>
@@ -17,7 +20,11 @@ const DomainRow = (props: Props) => {
         {buttonsFunction ? (
           buttonsFunction(domain)
         ) : domain.free ? (
-          <Button colorPalette={'secondary'}>Добавить в корзину</Button>
+          isLoggedIn ? (
+            <Button colorPalette={'secondary'}>Добавить в корзину</Button>
+          ) : (
+            <Text color={'green.500'} fontWeight={'bold'}>Свободен</Text>
+          )
         ) : (
           <Text>Домен занят</Text>
         )}
