@@ -22,14 +22,21 @@ public class NotificationController {
     @PostMapping("/send")
     public ResponseEntity<ApiResponse<Void>> sendNotification(
             @Valid @RequestBody SendNotificationRequest request) {
-        UUID userId = SecurityUtil.getCurrentUserId();
-        String userEmail = SecurityUtil.getCurrentUserEmail();
-        
-        if (userId == null || userEmail == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(new ru.itmo.common.dto.ApiError("UNAUTHORIZED", "User not authenticated")));
+        String userEmail;
+
+        // Если recipientEmail указан явно (системные уведомления от scheduler и т.п.)
+        if (request.getRecipientEmail() != null && !request.getRecipientEmail().isBlank()) {
+            userEmail = request.getRecipientEmail();
+        } else {
+            UUID userId = SecurityUtil.getCurrentUserId();
+            userEmail = SecurityUtil.getCurrentUserEmail();
+
+            if (userId == null || userEmail == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error(new ru.itmo.common.dto.ApiError("UNAUTHORIZED", "User not authenticated")));
+            }
         }
-        
+
         notificationService.sendNotification(request, userEmail);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success(null));
