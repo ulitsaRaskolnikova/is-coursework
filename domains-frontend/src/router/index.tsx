@@ -27,6 +27,9 @@ import UsersPage from '~/pages/admin/UsersPage.tsx';
 import SystemEventsPage from '~/pages/admin/SystemEventsPage.tsx';
 import FinancesPage from '~/pages/admin/FinancesPage.tsx';
 import ZonesPage from '~/pages/admin/ZonesPage.tsx';
+import PaymentSuccessPage from '~/pages/payment/PaymentSuccessPage.tsx';
+import PaymentFailPage from '~/pages/payment/PaymentFailPage.tsx';
+import PaymentReturnPage from '~/pages/payment/PaymentReturnPage.tsx';
 
 const Index = () => {
   return (
@@ -65,6 +68,10 @@ const Index = () => {
           <Route path={'me'} element={<ProfilePage />} />
           <Route path={'zones'} element={<ZonesPage />} />
         </Route>
+        <Route path={'/payment/return'} element={<PaymentReturnPage />} />
+        <Route path={'/payment/return'} element={<PaymentReturnPage />} />
+        <Route path={'/payment/success'} element={<PaymentSuccessPage />} />
+        <Route path={'/payment/fail'} element={<PaymentFailPage />} />
       </Route>
     </Routes>
   );

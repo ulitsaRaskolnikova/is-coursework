@@ -152,6 +152,23 @@ services:
     networks:
       - domain-registrar-network
 
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: payment-service
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres-payment
+      - domain-service
+    networks:
+      - domain-registrar-network
+
   postgres-order:
     image: postgres:15-alpine
     container_name: postgres-order
@@ -163,6 +180,20 @@ services:
       - "5435:5432"
     volumes:
       - postgres-order-data:/var/lib/postgresql/data
+    networks:
+      - domain-registrar-network
+
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: postgres-payment
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
     networks:
       - domain-registrar-network
 
@@ -253,6 +284,7 @@ volumes:
   postgres-auth-data:
   postgres-notification-data:
   postgres-order-data:
+  postgres-payment-data:
   postgres-audit-data:
   exdns-zones-data:
 

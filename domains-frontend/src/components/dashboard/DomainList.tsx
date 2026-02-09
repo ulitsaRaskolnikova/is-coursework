@@ -2,7 +2,23 @@ import React, { useState } from 'react';
 import type { DomainResponse } from '../../api/models';
 import { Button, Grid, GridItem, HStack, Text } from '@chakra-ui/react';
 import DateText from '../DateText';
-import { ORDER_AXIOS_INSTANCE } from '~/api/apiClientOrders';
+import Axios from 'axios';
+import { getAccessToken } from '~/utils/authTokens';
+import { PAYMENT_URL } from '~/api/Constants';
+
+const PAYMENT_ID_STORAGE_KEY = 'payment:lastId';
+
+const MONTHLY_PRICE = 200;
+const YEARLY_DISCOUNT = 0.7;
+
+interface PaymentCreateResponse {
+  paymentId: string;
+  paymentUrl: string;
+  operationId?: string;
+  status?: string;
+  amount?: number;
+  currency?: string;
+}
 
 type Props = {
   domains: DomainResponse[];
@@ -16,15 +32,33 @@ const DomainList = (props: Props) => {
   const handleRenew = async (fqdn: string, period: 'MONTH' | 'YEAR') => {
     setRenewingFqdn(fqdn);
     try {
-      await ORDER_AXIOS_INSTANCE.post('/domains/renew', {
-        l3Domains: [fqdn],
-        period,
-      });
-      setRenewedFqdns((prev) => new Set(prev).add(fqdn));
-      props.onRenewed?.();
+      const amountInRubles = period === 'YEAR' 
+        ? Math.round(MONTHLY_PRICE * 12 * YEARLY_DISCOUNT)
+        : MONTHLY_PRICE;
+      const amountInKopecks = amountInRubles * 100;
+
+      const token = getAccessToken();
+      const { data } = await Axios.post<PaymentCreateResponse>(
+        `${PAYMENT_URL}/`,
+        {
+          l3Domains: [fqdn],
+          period,
+          amount: amountInKopecks,
+          currency: 'RUB',
+          description: `Продление домена ${fqdn} на ${period === 'MONTH' ? '1 месяц' : '1 год'}`,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (data?.paymentUrl && data?.paymentId) {
+        localStorage.setItem(PAYMENT_ID_STORAGE_KEY, data.paymentId);
+        window.location.assign(data.paymentUrl);
+      } else {
+        throw new Error('Payment link missing');
+      }
     } catch {
-      // ignore
-    } finally {
       setRenewingFqdn(null);
     }
   };

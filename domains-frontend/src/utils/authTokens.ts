@@ -3,7 +3,8 @@ type TokenState = {
   refresh?: string;
 };
 
-const STORAGE_KEY = 'hrofors_refresh';
+const STORAGE_KEY_REFRESH = 'hrofors_refresh';
+const STORAGE_KEY_ACCESS = 'hrofors_access';
 
 const getWindowStore = () => {
   if (typeof window === 'undefined') {
@@ -22,10 +23,27 @@ const readStoredRefresh = () => {
     return undefined;
   }
 
-  return localStorage.getItem(STORAGE_KEY) || undefined;
+  return localStorage.getItem(STORAGE_KEY_REFRESH) || undefined;
 };
 
-export const getAccessToken = () => getWindowStore()?.access;
+const readStoredAccess = () => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return localStorage.getItem(STORAGE_KEY_ACCESS) || undefined;
+};
+
+export const getAccessToken = () => {
+  const store = getWindowStore();
+  const stored = readStoredAccess();
+
+  if (store && !store.access && stored) {
+    store.access = stored;
+  }
+
+  return store?.access ?? stored;
+};
 
 export const getRefreshToken = () => {
   const store = getWindowStore();
@@ -50,11 +68,20 @@ export const setTokens = ({ access, refresh }: TokenState) => {
     }
   }
 
-  if (typeof window !== 'undefined' && refresh !== undefined) {
-    if (refresh) {
-      localStorage.setItem(STORAGE_KEY, refresh);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+  if (typeof window !== 'undefined') {
+    if (access !== undefined) {
+      if (access) {
+        localStorage.setItem(STORAGE_KEY_ACCESS, access);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_ACCESS);
+      }
+    }
+    if (refresh !== undefined) {
+      if (refresh) {
+        localStorage.setItem(STORAGE_KEY_REFRESH, refresh);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_REFRESH);
+      }
     }
   }
 };
