@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Field,
   Heading,
@@ -37,15 +36,15 @@ const CartPage = () => {
   const [totalMonthly, setTotalMonthly] = useState(0);
   const [totalYearly, setTotalYearly] = useState(0);
   const [searchResults, setSearchResults] = useState<DomainSearchResult[]>([]);
-  const [isCartLoading, setIsCartLoading] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [addingFqdn, setAddingFqdn] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState('');
 
   const cartCount = useMemo(() => cartDomains.length, [cartDomains]);
+  const cartSet = useMemo(() => new Set(cartDomains), [cartDomains]);
 
   const loadCart = useCallback(async () => {
-    setIsCartLoading(true);
-    setError('');
     try {
       const { data } = await ORDER_AXIOS_INSTANCE.get<CartResponse>('/cart/me');
       setCartDomains(data.l3Domains ?? []);
@@ -53,8 +52,6 @@ const CartPage = () => {
       setTotalYearly(data.totalYearlyPrice ?? 0);
     } catch {
       setError('Не удалось загрузить корзину.');
-    } finally {
-      setIsCartLoading(false);
     }
   }, []);
 
@@ -102,7 +99,7 @@ const CartPage = () => {
 
   const handleAddToCart = useCallback(
     async (fqdn: string) => {
-      setIsCartLoading(true);
+      setAddingFqdn(fqdn);
       setError('');
       try {
         await ORDER_AXIOS_INSTANCE.post(`/cart/${encodeURIComponent(fqdn)}`);
@@ -110,7 +107,7 @@ const CartPage = () => {
       } catch {
         setError('Не удалось добавить домен в корзину.');
       } finally {
-        setIsCartLoading(false);
+        setAddingFqdn(null);
       }
     },
     [loadCart]
@@ -119,7 +116,7 @@ const CartPage = () => {
   const handleCheckout = useCallback(
     async (period: 'MONTH' | 'YEAR') => {
       if (cartDomains.length === 0) return;
-      setIsCartLoading(true);
+      setCheckoutLoading(true);
       setError('');
       try {
         await ORDER_AXIOS_INSTANCE.post('/cart/checkout', { period });
@@ -129,7 +126,7 @@ const CartPage = () => {
       } catch {
         setError('Не удалось оформить покупку.');
       } finally {
-        setIsCartLoading(false);
+        setCheckoutLoading(false);
       }
     },
     [cartDomains]
@@ -161,7 +158,7 @@ const CartPage = () => {
                 size={'sm'}
                 colorPalette={'secondary'}
                 onClick={() => handleCheckout('MONTH')}
-                loading={isCartLoading}
+                loading={checkoutLoading}
               >
                 Купить на месяц
               </Button>
@@ -169,7 +166,7 @@ const CartPage = () => {
                 size={'sm'}
                 colorPalette={'secondary'}
                 onClick={() => handleCheckout('YEAR')}
-                loading={isCartLoading}
+                loading={checkoutLoading}
               >
                 Купить на год
               </Button>
@@ -205,26 +202,38 @@ const CartPage = () => {
       {searchResults.length > 0 && (
         <Stack bg={'accent.muted'} p={5} borderRadius={'md'} gap={2}>
           <Text fontWeight={'bold'}>Результаты поиска</Text>
-          {searchResults.map((result) => (
-            <HStack key={result.fqdn} justifyContent={'space-between'}>
-              <Text>{result.fqdn}</Text>
-              <HStack>
-                <Text>{result.monthlyPrice}₽ / месяц</Text>
-                {result.free ? (
-                  <Button
-                    size={'sm'}
-                    colorPalette={'secondary'}
-                    onClick={() => handleAddToCart(result.fqdn)}
-                    loading={isCartLoading}
-                  >
-                    В корзину
-                  </Button>
-                ) : (
-                  <Text color={'fg.muted'}>Занят</Text>
-                )}
+          {searchResults.map((result) => {
+            const inCart = cartSet.has(result.fqdn);
+            const isAdding = addingFqdn === result.fqdn;
+
+            return (
+              <HStack key={result.fqdn} justifyContent={'space-between'}>
+                <Text>{result.fqdn}</Text>
+                <HStack>
+                  <Text>{result.monthlyPrice}₽ / месяц</Text>
+                  {result.free ? (
+                    inCart ? (
+                      <Button size={'sm'} colorPalette={'green'} variant={'solid'} disabled>
+                        В корзине
+                      </Button>
+                    ) : (
+                      <Button
+                        size={'sm'}
+                        colorPalette={'secondary'}
+                        onClick={() => handleAddToCart(result.fqdn)}
+                        loading={isAdding}
+                        disabled={addingFqdn !== null && !isAdding}
+                      >
+                        В корзину
+                      </Button>
+                    )
+                  ) : (
+                    <Text color={'fg.muted'}>Занят</Text>
+                  )}
+                </HStack>
               </HStack>
-            </HStack>
-          ))}
+            );
+          })}
         </Stack>
       )}
     </Stack>
