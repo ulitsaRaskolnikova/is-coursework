@@ -13,6 +13,7 @@ import ru.itmo.domain.entity.DnsRecord;
 import ru.itmo.domain.entity.Domain;
 import ru.itmo.domain.exception.DnsRecordNameMismatchException;
 import ru.itmo.domain.exception.DnsRecordNotFoundException;
+import ru.itmo.domain.exception.ForbiddenException;
 import ru.itmo.domain.exception.ForbiddenWordException;
 import ru.itmo.domain.exception.L2DomainNotFoundException;
 import ru.itmo.domain.exception.L3DomainNotFoundException;
@@ -21,6 +22,9 @@ import ru.itmo.domain.repository.BadWordRepository;
 import ru.itmo.domain.repository.DomainRepository;
 import ru.itmo.domain.repository.DnsRecordRepository;
 import ru.itmo.domain.service.DnsRecordService;
+import ru.itmo.domain.util.SecurityUtil;
+
+import java.util.UUID;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -149,12 +153,17 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
                 .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
 
+        UUID currentUserId = SecurityUtil.getCurrentUserId();
         Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
                 .orElseGet(() -> {
                     Domain child = new Domain();
                     child.setDomainPart(l3Part);
                     child.setParent(l2);
                     child.setDomainVersion(1L);
+                    // Set userId for user-created L3 domains
+                    if (currentUserId != null && !SecurityUtil.isAdmin()) {
+                        child.setUserId(currentUserId);
+                    }
                     return domainRepository.save(child);
                 });
 
@@ -249,6 +258,17 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (domain == null) {
             throw new DnsRecordNotFoundException(id);
         }
+        
+        // Check permissions: user can only modify their own domains, admin can modify all
+        UUID currentUserId = SecurityUtil.getCurrentUserId();
+        if (!SecurityUtil.isAdmin()) {
+            // For L3 domains, check the L3 domain's userId; for L2 domains, check the L2 domain's userId
+            Domain domainToCheck = domain.getParent() == null ? domain : domain;
+            if (domainToCheck.getUserId() == null || !domainToCheck.getUserId().equals(currentUserId)) {
+                throw new ForbiddenException("You can only modify your own domains");
+            }
+        }
+        
         String expectedName = getFullDomainName(domain);
         JsonNode tree = objectMapper.valueToTree(dnsRecord);
         String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
@@ -275,6 +295,17 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (domain == null) {
             throw new DnsRecordNotFoundException(id);
         }
+        
+        // Check permissions: user can only delete their own domains, admin can delete all
+        UUID currentUserId = SecurityUtil.getCurrentUserId();
+        if (!SecurityUtil.isAdmin()) {
+            // For L3 domains, check the L3 domain's userId; for L2 domains, check the L2 domain's userId
+            Domain domainToCheck = domain.getParent() == null ? domain : domain;
+            if (domainToCheck.getUserId() == null || !domainToCheck.getUserId().equals(currentUserId)) {
+                throw new ForbiddenException("You can only delete your own domains");
+            }
+        }
+        
         dnsRecordRepository.delete(entity);
         if (domain.getParent() == null) {
             syncZoneToExdns(domain.getDomainPart());

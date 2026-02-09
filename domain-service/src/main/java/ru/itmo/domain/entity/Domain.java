@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "domain")
@@ -24,6 +25,9 @@ public class Domain {
 
     @Column(name = "domain_version")
     private Long domainVersion;
+
+    @Column(name = "user_id")
+    private UUID userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
