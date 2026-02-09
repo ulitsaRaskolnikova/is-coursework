@@ -1,32 +1,55 @@
-import { Button, HStack, Input, Stack, Table, Text } from '@chakra-ui/react';
+import { Button, HStack, Input, Spinner, Stack, Text } from '@chakra-ui/react';
+import axios from 'axios';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
-import DomainRow from '../components/domainsTable/DomainRow';
+import type { DomainQuery } from '~/api/models/DomainQuery';
+import { DOMAIN_ORDER_URL } from '~/api/Constants';
 import { validateDomain } from '../utils/validateDomain';
 import { $ok } from '../common/atoms';
 import DomainsTable from '~/components/domainsTable/DomainsTable';
 
+const MONTHLY_PRICE = 200;
+
 const CheckDomainPage = () => {
-  const [searchParams, _] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const query = searchParams.get('q');
   const [input, setInput] = useState(query ?? '');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [domains, setDomains] = useState<DomainQuery[]>([]);
 
-  const [domains, setDomains] = useState(
-    query
-      ? ['.goip.pw', '.godns.pw', '.gofrom.pw'].map((domain) => ({
-          fqdn: `${query}${domain}`,
-          price: 50,
-          free: Math.random() > 0.5,
-        }))
-      : []
-  );
+  const fetchDomains = useCallback(async (name: string) => {
+    setLoading(true);
+    setError('');
+    setDomains([]);
 
-  const fetchDomains = (domain: string) => {
-    console.log('Fetch Domains');
+    try {
+      const [freeRes, zonesRes] = await Promise.all([
+        axios.get<string[]>(`${DOMAIN_ORDER_URL}/l3Domains/${encodeURIComponent(name)}/free`),
+        axios.get<{ name: string }[]>(`${DOMAIN_ORDER_URL}/l2Domains`),
+      ]);
 
-    // TODO Fetch domains
-  };
+      const freeDomains = new Set(freeRes.data ?? []);
+      const zones = zonesRes.data ?? [];
+
+      const results: DomainQuery[] = zones.map((zone) => {
+        const fqdn = `${name}.${zone.name}`;
+        return {
+          fqdn,
+          price: MONTHLY_PRICE,
+          free: freeDomains.has(fqdn),
+        };
+      });
+
+      results.sort((a, b) => (a.free === b.free ? 0 : a.free ? -1 : 1));
+      setDomains(results);
+    } catch (e) {
+      setError('Не удалось проверить доступность доменов');
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSubmit = useCallback(
     (e: FormEvent<HTMLFormElement>) => {
@@ -41,12 +64,11 @@ const CheckDomainPage = () => {
         setError(reason);
       }
     },
-    [input]
+    [input, fetchDomains]
   );
 
   useEffect(() => {
     if (!query) return;
-
     fetchDomains(query);
   }, []);
 
@@ -64,8 +86,8 @@ const CheckDomainPage = () => {
               setError('');
             }}
           />
-          <Button fontSize={20} p={6} type={'submit'} colorPalette={'accent'}>
-            Проверить
+          <Button fontSize={20} p={6} type={'submit'} colorPalette={'accent'} disabled={loading}>
+            {loading ? <Spinner size="sm" /> : 'Проверить'}
           </Button>
         </HStack>
         {error && (
