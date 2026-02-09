@@ -114,6 +114,18 @@ public class DnsRecordServiceImpl implements DnsRecordService {
     }
 
     @Override
+    public List<String> getFreeL3Domains(String name) {
+        String l3Part = name == null ? null : name.trim();
+        if (l3Part == null || l3Part.isBlank()) {
+            return List.of();
+        }
+        return domainRepository.findAllByParentIsNull().stream()
+                .filter(l2 -> !domainRepository.existsByParentIdAndDomainPart(l2.getId(), l3Part))
+                .map(l2 -> l3Part + "." + l2.getDomainPart())
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<DnsRecordResponse> getDnsRecords(String l2Domain) {
         String name = l2Domain == null ? null : l2Domain.trim();
         Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
