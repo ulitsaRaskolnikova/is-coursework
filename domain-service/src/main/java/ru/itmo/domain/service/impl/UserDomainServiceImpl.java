@@ -87,7 +87,6 @@ public class UserDomainServiceImpl implements UserDomainService {
             Domain l2 = domainRepository.findByDomainPartAndParentIsNull(l2Name)
                     .orElseThrow(() -> new L2DomainNotFoundException(l2Name));
 
-            // Create L3 domain if it doesn't exist
             Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
                     .orElseGet(() -> {
                         Domain child = new Domain();
@@ -100,7 +99,6 @@ public class UserDomainServiceImpl implements UserDomainService {
                         return domainRepository.save(child);
                     });
 
-            // If domain already exists but doesn't have userId set, update it
             if (l3.getUserId() == null) {
                 l3.setUserId(userId);
                 l3.setActivatedAt(now);
@@ -113,7 +111,6 @@ public class UserDomainServiceImpl implements UserDomainService {
 
         auditClient.log("Created " + createdDomains.size() + " domains (period=" + period + "): " + String.join(", ", createdDomains), userId);
 
-        // Отправляем одно email-уведомление со всеми созданными доменами
         if (!createdDomains.isEmpty()) {
             notificationClient.sendDomainsActivated(userId, createdDomains, finishedAt.format(DATE_FMT));
         }
@@ -153,14 +150,12 @@ public class UserDomainServiceImpl implements UserDomainService {
             Domain l3 = domainRepository.findByParentIdAndDomainPart(l2.getId(), l3Part)
                     .orElseThrow(() -> new IllegalArgumentException("Domain not found: " + l3Name));
 
-            // Check ownership
             if (!SecurityUtil.isAdmin()) {
                 if (l3.getUserId() == null || !l3.getUserId().equals(userId)) {
                     throw new ForbiddenException("You can only renew your own domains");
                 }
             }
 
-            // Extend finished_at from current finished_at (or from now if already expired)
             LocalDateTime baseDate = l3.getFinishedAt();
             if (baseDate == null || baseDate.isBefore(LocalDateTime.now())) {
                 baseDate = LocalDateTime.now();
