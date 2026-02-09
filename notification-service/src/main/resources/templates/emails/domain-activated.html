@@ -2,15 +2,29 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Домен активирован</title>
+    <title>Домены активированы</title>
 </head>
 <body>
-    <h2>Домен успешно активирован</h2>
-    <p>Здравствуйте!</p>
-    <p>Ваш домен был успешно активирован и готов к использованию.</p>
-    <p th:if="${domainName}">Домен: <strong th:text="${domainName}"></strong></p>
-    <p th:if="${expiresAt}">Срок действия до: <strong th:text="${expiresAt}"></strong></p>
-    <p>Теперь вы можете управлять DNS-записями домена в личном кабинете.</p>
-    <p>С уважением,<br>Команда Domain Registrar</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Домены успешно активированы</h2>
+        <p>Здравствуйте!</p>
+        <p>Ваши домены были успешно активированы и готовы к использованию.</p>
+        <table th:if="${domains}" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Домен</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Срок действия до</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="d : ${domains}">
+                    <td style="border: 1px solid #ddd; padding: 8px;" th:text="${d}"></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;" th:text="${expiresAt}"></td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Теперь вы можете управлять DNS-записями доменов в личном кабинете.</p>
+        <p>С уважением,<br>Команда Domain Registrar</p>
+    </div>
 </body>
 </html>

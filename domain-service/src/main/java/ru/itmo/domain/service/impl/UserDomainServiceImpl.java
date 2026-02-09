@@ -3,6 +3,7 @@ package ru.itmo.domain.service.impl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.common.audit.AuditClient;
+import ru.itmo.domain.client.NotificationClient;
 import ru.itmo.domain.entity.Domain;
 import ru.itmo.domain.exception.ForbiddenException;
 import ru.itmo.domain.exception.L2DomainNotFoundException;
@@ -14,6 +15,7 @@ import ru.itmo.domain.service.UserDomainService;
 import ru.itmo.domain.util.SecurityUtil;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -21,12 +23,16 @@ import java.util.UUID;
 @Service
 public class UserDomainServiceImpl implements UserDomainService {
 
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     private final DomainRepository domainRepository;
     private final AuditClient auditClient;
+    private final NotificationClient notificationClient;
 
-    public UserDomainServiceImpl(DomainRepository domainRepository, AuditClient auditClient) {
+    public UserDomainServiceImpl(DomainRepository domainRepository, AuditClient auditClient, NotificationClient notificationClient) {
         this.domainRepository = domainRepository;
         this.auditClient = auditClient;
+        this.notificationClient = notificationClient;
     }
 
     @Override
@@ -106,6 +112,12 @@ public class UserDomainServiceImpl implements UserDomainService {
         }
 
         auditClient.log("Created " + createdDomains.size() + " domains (period=" + period + "): " + String.join(", ", createdDomains), userId);
+
+        // Отправляем одно email-уведомление со всеми созданными доменами
+        if (!createdDomains.isEmpty()) {
+            notificationClient.sendDomainsActivated(userId, createdDomains, finishedAt.format(DATE_FMT));
+        }
+
         return createdDomains;
     }
 
@@ -119,6 +131,7 @@ public class UserDomainServiceImpl implements UserDomainService {
 
         DomainPeriod period = request.getPeriod();
         List<String> renewedDomains = new ArrayList<>();
+        java.util.LinkedHashMap<String, String> domainsWithExpiry = new java.util.LinkedHashMap<>();
 
         for (String l3Domain : request.getL3Domains()) {
             String l3Name = l3Domain == null ? null : l3Domain.trim();
@@ -152,13 +165,20 @@ public class UserDomainServiceImpl implements UserDomainService {
             if (baseDate == null || baseDate.isBefore(LocalDateTime.now())) {
                 baseDate = LocalDateTime.now();
             }
-            l3.setFinishedAt(calculateFinishedAt(baseDate, period));
+            LocalDateTime newFinishedAt = calculateFinishedAt(baseDate, period);
+            l3.setFinishedAt(newFinishedAt);
             domainRepository.save(l3);
 
             renewedDomains.add(l3Name);
+            domainsWithExpiry.put(l3Name, newFinishedAt.format(DATE_FMT));
         }
 
         auditClient.log("Renewed " + renewedDomains.size() + " domains (period=" + period + "): " + String.join(", ", renewedDomains), userId);
+
+        if (!domainsWithExpiry.isEmpty()) {
+            notificationClient.sendDomainsRenewed(userId, domainsWithExpiry);
+        }
+
         return renewedDomains;
     }
 

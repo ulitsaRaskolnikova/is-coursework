@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Домены продлены</title>
+</head>
+<body>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Домены успешно продлены</h2>
+        <p>Здравствуйте!</p>
+        <p>Срок действия ваших доменов был успешно продлён.</p>
+        <table th:if="${domains}" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Домен</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Новый срок действия до</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="entry : ${domains}">
+                    <td style="border: 1px solid #ddd; padding: 8px;" th:text="${entry.key}"></td>
+                    <td style="border: 1px solid #ddd; padding: 8px;" th:text="${entry.value}"></td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Вы можете управлять DNS-записями доменов в личном кабинете.</p>
+        <p>С уважением,<br>Команда Domain Registrar</p>
+    </div>
+</body>
+</html>
