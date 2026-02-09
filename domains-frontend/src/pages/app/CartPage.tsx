@@ -1,4 +1,4 @@
-﻿import {
+import {
   Box,
   Button,
   Field,
@@ -9,79 +9,34 @@
   Text,
 } from '@chakra-ui/react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { DomainQuery } from '~/api/models/DomainQuery';
-import { RecordType, type Zone as ExdnsZone } from '~/api/models/exdns';
-import {
-  AddCartItemRequestAction,
-  AddCartItemRequestTerm,
-} from '~/api/models/domain-order';
-import {
-  addItem,
-  clearCart,
-  createDomain,
-  getCart,
-  getZoneByName,
-  removeItem,
-  searchDomains,
-} from '~/api/services/domain-order';
-import { postZonesDomain } from '~/api/services/exdns';
-import DomainsTable from '~/components/domainsTable/DomainsTable';
+import { ORDER_AXIOS_INSTANCE } from '~/api/apiClientOrders';
+import { AXIOS_INSTANCE } from '~/api/apiClientDomains';
 
-type CartDomain = DomainQuery & { itemId?: string };
+interface CartResponse {
+  totalMonthlyPrice: number;
+  totalYearlyPrice: number;
+  l3Domains: string[];
+}
 
-type DomainSearchItem = {
-  fqdn?: string;
-  price?: number;
-  free?: boolean;
-};
+interface L2Zone {
+  id: number;
+  name: string;
+  monthlyPrice?: number;
+}
 
-type CartItem = {
-  id?: string;
-  fqdn?: string;
-  price?: number;
-};
-
-const mapCartItems = (items: CartItem[]): CartDomain[] =>
-  items.map((item) => ({
-    itemId: item.id,
-    fqdn: item.fqdn ?? '',
-    price: item.price ?? 0,
-    free: false,
-  }));
-
-const mapSearchItems = (items: DomainSearchItem[]): DomainQuery[] =>
-  items.map((item) => ({
-    fqdn: item.fqdn ?? '',
-    price: item.price ?? 0,
-    free: Boolean(item.free),
-  }));
-
-const resolveZoneId = async (fqdn: string) => {
-  const parts = fqdn.split('.').filter(Boolean);
-  if (parts.length <= 2) return '';
-
-  const zoneName = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-  const zoneResponse = await getZoneByName(zoneName);
-  return zoneResponse?.data?.id ?? '';
-};
-
-const buildZonePayload = (fqdn: string): ExdnsZone => ({
-  name: fqdn,
-  version: 1,
-  records: [
-    {
-      name: '@',
-      type: RecordType.A,
-      ttl: 300,
-      data: '127.0.0.1',
-    },
-  ],
-});
+interface DomainSearchResult {
+  fqdn: string;
+  zone: string;
+  free: boolean;
+  monthlyPrice: number;
+}
 
 const CartPage = () => {
-  const [query, setQuery] = useState<string>('');
-  const [cartDomains, setCartDomains] = useState<CartDomain[]>([]);
-  const [domains, setDomains] = useState<DomainQuery[]>([]);
+  const [query, setQuery] = useState('');
+  const [cartDomains, setCartDomains] = useState<string[]>([]);
+  const [totalMonthly, setTotalMonthly] = useState(0);
+  const [totalYearly, setTotalYearly] = useState(0);
+  const [searchResults, setSearchResults] = useState<DomainSearchResult[]>([]);
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,13 +46,13 @@ const CartPage = () => {
   const loadCart = useCallback(async () => {
     setIsCartLoading(true);
     setError('');
-
     try {
-      const response = await getCart();
-      const items = response?.data?.items ?? [];
-      setCartDomains(mapCartItems(items));
+      const { data } = await ORDER_AXIOS_INSTANCE.get<CartResponse>('/cart/me');
+      setCartDomains(data.l3Domains ?? []);
+      setTotalMonthly(data.totalMonthlyPrice ?? 0);
+      setTotalYearly(data.totalYearlyPrice ?? 0);
     } catch {
-      setError('Не удалось загрузить корзину. Попробуйте еще раз.');
+      setError('Не удалось загрузить корзину.');
     } finally {
       setIsCartLoading(false);
     }
@@ -117,11 +72,27 @@ const CartPage = () => {
       setError('');
 
       try {
-        const response = await searchDomains({ query: search });
-        const items = response?.data ?? [];
-        setDomains(mapSearchItems(items));
+        const [freeRes, zonesRes] = await Promise.all([
+          AXIOS_INSTANCE.get<string[]>(`/l3Domains/${encodeURIComponent(search)}/free`),
+          AXIOS_INSTANCE.get<L2Zone[]>('/l2Domains'),
+        ]);
+
+        const freeDomains = new Set(freeRes.data ?? []);
+        const zones = zonesRes.data ?? [];
+
+        const results: DomainSearchResult[] = zones.map((zone) => {
+          const fqdn = `${search}.${zone.name}`;
+          return {
+            fqdn,
+            zone: zone.name,
+            free: freeDomains.has(fqdn),
+            monthlyPrice: zone.monthlyPrice ?? 200,
+          };
+        });
+
+        setSearchResults(results);
       } catch {
-        setError('Не удалось выполнить поиск доменов. Попробуйте еще раз.');
+        setError('Не удалось выполнить поиск доменов.');
       } finally {
         setIsSearchLoading(false);
       }
@@ -129,59 +100,15 @@ const CartPage = () => {
     [query]
   );
 
-  const handlePurchase = useCallback(async () => {
-    if (cartDomains.length === 0) return;
-
-    setIsCartLoading(true);
-    setError('');
-
-    try {
-      for (const domain of cartDomains) {
-        const fqdn = domain.fqdn.trim();
-        if (!fqdn) continue;
-
-        const zoneId = await resolveZoneId(fqdn);
-        if (!zoneId) {
-          throw new Error('zone');
-        }
-
-        const expiresAt = new Date();
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-
-        await createDomain({
-          fqdn,
-          zoneId,
-          expiresAt: expiresAt.toISOString(),
-        });
-        await postZonesDomain(fqdn, buildZonePayload(fqdn));
-      }
-
-      await clearCart();
-      setCartDomains([]);
-    } catch {
-      setError('Не удалось оформить покупку. Попробуйте еще раз.');
-    } finally {
-      setIsCartLoading(false);
-    }
-  }, [cartDomains]);
-
   const handleAddToCart = useCallback(
-    async (domain: DomainQuery) => {
-      if (!domain.free) return;
-
+    async (fqdn: string) => {
       setIsCartLoading(true);
       setError('');
-
       try {
-        await addItem({
-          action: AddCartItemRequestAction.register,
-          term: AddCartItemRequestTerm.yearly,
-          fqdn: domain.fqdn,
-          price: domain.price,
-        });
+        await ORDER_AXIOS_INSTANCE.post(`/cart/${encodeURIComponent(fqdn)}`);
         await loadCart();
       } catch {
-        setError('Не удалось добавить домен в корзину. Попробуйте еще раз.');
+        setError('Не удалось добавить домен в корзину.');
       } finally {
         setIsCartLoading(false);
       }
@@ -189,21 +116,24 @@ const CartPage = () => {
     [loadCart]
   );
 
-  const handleRemoveFromCart = useCallback(async (domain: CartDomain) => {
-    if (!domain.itemId) return;
-
-    setIsCartLoading(true);
-    setError('');
-
-    try {
-      await removeItem(domain.itemId);
-      setCartDomains((prev) => prev.filter((item) => item.itemId !== domain.itemId));
-    } catch {
-      setError('Не удалось удалить домен из корзины. Попробуйте еще раз.');
-    } finally {
-      setIsCartLoading(false);
-    }
-  }, []);
+  const handleCheckout = useCallback(
+    async (period: 'MONTH' | 'YEAR') => {
+      if (cartDomains.length === 0) return;
+      setIsCartLoading(true);
+      setError('');
+      try {
+        await ORDER_AXIOS_INSTANCE.post('/cart/checkout', { period });
+        setCartDomains([]);
+        setTotalMonthly(0);
+        setTotalYearly(0);
+      } catch {
+        setError('Не удалось оформить покупку.');
+      } finally {
+        setIsCartLoading(false);
+      }
+    },
+    [cartDomains]
+  );
 
   return (
     <Stack gap={4}>
@@ -211,22 +141,50 @@ const CartPage = () => {
         <Heading>Корзина</Heading>
         <HStack>
           <Text>{cartCount} доменов</Text>
-          <Button
-            size={'sm'}
-            colorPalette={'secondary'}
-            onClick={handlePurchase}
-            loading={isCartLoading}
-          >
-            Приобрести
-          </Button>
         </HStack>
       </HStack>
+
+      {/* Cart contents */}
+      {cartDomains.length > 0 && (
+        <Stack bg={'accent.muted'} p={5} borderRadius={'md'} gap={3}>
+          {cartDomains.map((domain) => (
+            <HStack key={domain} justifyContent={'space-between'}>
+              <Text>{domain}</Text>
+            </HStack>
+          ))}
+          <HStack justifyContent={'space-between'} pt={3} borderTopWidth={1}>
+            <Text fontWeight={'bold'}>
+              Итого: {totalMonthly}₽/мес · {totalYearly}₽/год
+            </Text>
+            <HStack>
+              <Button
+                size={'sm'}
+                colorPalette={'secondary'}
+                onClick={() => handleCheckout('MONTH')}
+                loading={isCartLoading}
+              >
+                Купить на месяц
+              </Button>
+              <Button
+                size={'sm'}
+                colorPalette={'secondary'}
+                onClick={() => handleCheckout('YEAR')}
+                loading={isCartLoading}
+              >
+                Купить на год
+              </Button>
+            </HStack>
+          </HStack>
+        </Stack>
+      )}
+
+      {/* Search */}
       <form onSubmit={handleSubmit}>
         <HStack alignItems={'flex-end'}>
           <Field.Root>
-            <Field.Label>Домен</Field.Label>
+            <Field.Label>Поиск домена</Field.Label>
             <Input
-              placeholder="Введите домен"
+              placeholder="Введите имя домена"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -236,43 +194,39 @@ const CartPage = () => {
           </Button>
         </HStack>
       </form>
+
       {error && (
         <Text color={'fg.error'} fontSize={'sm'}>
           {error}
         </Text>
       )}
-      <DomainsTable
-        domains={cartDomains}
-        buttonsFunction={(domain) => (
-          <Button
-            size={'sm'}
-            colorPalette={'secondary'}
-            onClick={() => handleRemoveFromCart(domain as CartDomain)}
-            loading={isCartLoading}
-          >
-            Удалить
-          </Button>
-        )}
-      />
-      <Box my={2} />
-      <Text>Доступные домены</Text>
-      <DomainsTable
-        domains={domains}
-        buttonsFunction={(domain) =>
-          domain.free ? (
-            <Button
-              size={'sm'}
-              colorPalette={'secondary'}
-              onClick={() => handleAddToCart(domain)}
-              loading={isCartLoading}
-            >
-              В корзину
-            </Button>
-          ) : (
-            <Text>Недоступен</Text>
-          )
-        }
-      />
+
+      {/* Search results */}
+      {searchResults.length > 0 && (
+        <Stack bg={'accent.muted'} p={5} borderRadius={'md'} gap={2}>
+          <Text fontWeight={'bold'}>Результаты поиска</Text>
+          {searchResults.map((result) => (
+            <HStack key={result.fqdn} justifyContent={'space-between'}>
+              <Text>{result.fqdn}</Text>
+              <HStack>
+                <Text>{result.monthlyPrice}₽ / месяц</Text>
+                {result.free ? (
+                  <Button
+                    size={'sm'}
+                    colorPalette={'secondary'}
+                    onClick={() => handleAddToCart(result.fqdn)}
+                    loading={isCartLoading}
+                  >
+                    В корзину
+                  </Button>
+                ) : (
+                  <Text color={'fg.muted'}>Занят</Text>
+                )}
+              </HStack>
+            </HStack>
+          ))}
+        </Stack>
+      )}
     </Stack>
   );
 };

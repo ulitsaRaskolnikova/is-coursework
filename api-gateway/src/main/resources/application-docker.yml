@@ -50,6 +50,13 @@ spring:
           filters:
             - StripPrefix=${API_GATEWAY_STRIP_PREFIX:1}
 
+        - id: order-service
+          uri: http://order-service:8084
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - StripPrefix=${API_GATEWAY_STRIP_PREFIX:1}
+
         - id: audit-service
           uri: http://audit-service:8087
           predicates:
