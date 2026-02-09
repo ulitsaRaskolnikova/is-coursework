@@ -1,22 +1,53 @@
 import { Heading, Stack } from '@chakra-ui/react';
-import dayjs from 'dayjs';
+import { useEffect, useState } from 'react';
 import EventList from '~/components/dashboard/EventList';
+import Axios from 'axios';
+import { getAccessToken } from '~/utils/authTokens';
+
+interface AuditEventDto {
+  id: number;
+  description: string;
+  eventTime: string;
+}
 
 const EventsPage = () => {
-  const events = [
-    {
-      id: 'e9a0b6d3-a82e-412f-861e-a313c4f3d91b',
-      type: 'SYSTEM',
-      message: 'Что-то произошло',
-      at: dayjs(new Date(2026, 2, 12)),
-    },
-    {
-      id: 'e9a0bvd3-a82e-412f-861e-a313c4f3d91b',
-      type: 'USER',
-      message: 'Выполнен вход в систему',
-      at: dayjs(new Date(2026, 2, 12)),
-    },
-  ];
+  const [events, setEvents] = useState<
+    { id: string; type: 'SYSTEM' | 'USER'; message: string; at: string }[]
+  >([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadEvents = async () => {
+      try {
+        const token = getAccessToken();
+        const { data } = await Axios.get<AuditEventDto[]>(
+          '/api/audit/events/my',
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        );
+        if (isMounted) {
+          setEvents(
+            (data ?? []).map((e) => ({
+              id: e.id.toString(),
+              type: 'SYSTEM' as const,
+              message: e.description,
+              at: e.eventTime,
+            }))
+          );
+        }
+      } catch {
+        if (isMounted) setEvents([]);
+      }
+    };
+
+    loadEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <Stack gap={4}>

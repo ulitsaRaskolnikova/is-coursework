@@ -25,9 +25,13 @@ const DomainList = (props: Props) => {
             <Text>{domain.fqdn}</Text>
           </GridItem>
           <GridItem>
-            <Text>
-              до <DateText as={'span'}>{domain.expiresAt}</DateText>
-            </Text>
+            {domain.expiresAt ? (
+              <Text>
+                до <DateText as={'span'}>{domain.expiresAt}</DateText>
+              </Text>
+            ) : (
+              <Text color="fg.muted">—</Text>
+            )}
           </GridItem>
           <GridItem>
             <HStack justifyContent={'flex-end'}>

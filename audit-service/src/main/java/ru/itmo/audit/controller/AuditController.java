@@ -3,12 +3,13 @@ package ru.itmo.audit.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import ru.itmo.audit.entity.AuditEvent;
 import ru.itmo.audit.repository.AuditEventRepository;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/audit")
@@ -37,5 +38,27 @@ public class AuditController {
         auditEventRepository.save(event);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/events/my")
+    public ResponseEntity<List<Map<String, Object>>> getMyEvents() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UUID userId = (UUID) auth.getPrincipal();
+        List<AuditEvent> events = auditEventRepository.findByUserIdOrderByEventTimeDesc(userId);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AuditEvent e : events) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", e.getId());
+            map.put("description", e.getDescription());
+            map.put("eventTime", e.getEventTime() != null ? e.getEventTime().toString() : null);
+            result.add(map);
+        }
+
+        return ResponseEntity.ok(result);
     }
 }

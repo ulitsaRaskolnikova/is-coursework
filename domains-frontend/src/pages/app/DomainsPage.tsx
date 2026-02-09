@@ -1,8 +1,16 @@
 import { Button, Heading, HStack, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import type { DomainResponse } from '~/api/models/domain-order';
-import { getAllDomains } from '~/api/services/domain-order';
+import { AXIOS_INSTANCE } from '~/api/apiClientDomains';
 import DomainList from '../../components/dashboard/DomainList';
+
+interface UserDomainDetailed {
+  id?: number;
+  fqdn?: string;
+  zoneName?: string;
+  activatedAt?: string;
+  expiresAt?: string;
+}
 
 const DomainsPage = () => {
   const [domains, setDomains] = useState<DomainResponse[]>([]);
@@ -12,14 +20,16 @@ const DomainsPage = () => {
 
     const loadDomains = async () => {
       try {
-        const response = await getAllDomains({
-          pageable: {
-            page: 0,
-            size: 50,
-          },
-        });
+        const { data } = await AXIOS_INSTANCE.get<UserDomainDetailed[]>('/userDomains/detailed');
         if (isMounted) {
-          setDomains(response?.data?.content ?? []);
+          const mapped: DomainResponse[] = (data ?? []).map((d) => ({
+            id: d.id?.toString(),
+            fqdn: d.fqdn,
+            zoneName: d.zoneName,
+            activatedAt: d.activatedAt,
+            expiresAt: d.expiresAt,
+          }));
+          setDomains(mapped);
         }
       } catch {
         if (isMounted) {
@@ -40,7 +50,7 @@ const DomainsPage = () => {
       <HStack justifyContent={'space-between'}>
         <Heading>Мои домены</Heading>
         <HStack>
-          <Text>15 доменов</Text>
+          <Text>{domains.length} доменов</Text>
           <Button colorPalette={'secondary'} size={'sm'}>
             купить новый
           </Button>

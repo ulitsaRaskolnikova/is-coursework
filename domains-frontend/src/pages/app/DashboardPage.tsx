@@ -1,44 +1,89 @@
 import { Stack } from '@chakra-ui/react';
-import React from 'react';
+import { useEffect, useState } from 'react';
 import AppLink from '../../components/AppLink';
-import { ArrowRight, MoveRight } from 'lucide-react';
-import dayjs from 'dayjs';
+import { ArrowRight } from 'lucide-react';
 import DomainList from '../../components/dashboard/DomainList';
 import EventList from '../../components/dashboard/EventList';
+import { AXIOS_INSTANCE } from '~/api/apiClientDomains';
+import type { DomainResponse } from '~/api/models/domain-order';
+import Axios from 'axios';
+import { getAccessToken } from '~/utils/authTokens';
+
+interface UserDomainDetailed {
+  id?: number;
+  fqdn?: string;
+  zoneName?: string;
+  activatedAt?: string;
+  expiresAt?: string;
+}
+
+interface AuditEventDto {
+  id: number;
+  description: string;
+  eventTime: string;
+}
 
 const DashboardPage = () => {
-  const domains = [
-    {
-      id: 'e29d0a63-1e74-4d44-b433-59524ecc67ae',
-      fqdn: 'hello.example.com',
-      expiresAt: dayjs(new Date(2026, 1, 3)),
-    },
-    {
-      id: '25c12320-addf-4a80-bce2-c10aa8be177f',
-      fqdn: 'hello.omg.com',
-      expiresAt: dayjs(new Date(2026, 2, 6)),
-    },
-    {
-      id: 'e9a0b6d3-a82e-412f-861e-a313c4f3d91b',
-      fqdn: 'goodbye.example.com',
-      expiresAt: dayjs(new Date(2026, 2, 12)),
-    },
-  ];
+  const [domains, setDomains] = useState<DomainResponse[]>([]);
+  const [events, setEvents] = useState<
+    { id: string; type: 'SYSTEM' | 'USER'; message: string; at: string }[]
+  >([]);
 
-  const events = [
-    {
-      id: 'e9a0b6d3-a82e-412f-861e-a313c4f3d91b',
-      type: 'SYSTEM',
-      message: 'Что-то произошло',
-      at: dayjs(new Date(2026, 2, 12)),
-    },
-    {
-      id: 'e9a0bvd3-a82e-412f-861e-a313c4f3d91b',
-      type: 'USER',
-      message: 'Выполнен вход в систему',
-      at: dayjs(new Date(2026, 2, 12)),
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDomains = async () => {
+      try {
+        const { data } = await AXIOS_INSTANCE.get<UserDomainDetailed[]>(
+          '/userDomains/detailed'
+        );
+        if (isMounted) {
+          setDomains(
+            (data ?? []).map((d) => ({
+              id: d.id?.toString(),
+              fqdn: d.fqdn,
+              zoneName: d.zoneName,
+              activatedAt: d.activatedAt,
+              expiresAt: d.expiresAt,
+            }))
+          );
+        }
+      } catch {
+        if (isMounted) setDomains([]);
+      }
+    };
+
+    const loadEvents = async () => {
+      try {
+        const token = getAccessToken();
+        const { data } = await Axios.get<AuditEventDto[]>(
+          '/api/audit/events/my',
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        );
+        if (isMounted) {
+          setEvents(
+            (data ?? []).slice(0, 10).map((e) => ({
+              id: e.id.toString(),
+              type: 'SYSTEM' as const,
+              message: e.description,
+              at: e.eventTime,
+            }))
+          );
+        }
+      } catch {
+        if (isMounted) setEvents([]);
+      }
+    };
+
+    loadDomains();
+    loadEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <Stack gap={10}>
