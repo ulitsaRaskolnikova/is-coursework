@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.domain.client.ExdnsClient;
 import ru.itmo.domain.entity.DnsRecord;
 import ru.itmo.domain.entity.Domain;
+import ru.itmo.domain.exception.DnsRecordNameMismatchException;
 import ru.itmo.domain.exception.DnsRecordNotFoundException;
 import ru.itmo.domain.exception.L2DomainNotFoundException;
 import ru.itmo.domain.generated.model.DnsRecordResponse;
@@ -51,10 +52,15 @@ public class DnsRecordServiceImpl implements DnsRecordService {
     @Transactional
     public DnsRecordResponse create(String l2Domain, ru.itmo.domain.generated.model.DnsRecord dnsRecord) {
         String name = l2Domain == null ? null : l2Domain.trim();
+        JsonNode tree = objectMapper.valueToTree(dnsRecord);
+        String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
+        if (bodyName == null || !name.equals(bodyName)) {
+            throw new DnsRecordNameMismatchException(name, bodyName);
+        }
         Domain domain = domainRepository.findByDomainPartAndParentIsNull(name)
                 .orElseThrow(() -> new L2DomainNotFoundException(name));
 
-        String recordData = objectMapper.valueToTree(dnsRecord).toString();
+        String recordData = tree.toString();
 
         DnsRecord entity = new DnsRecord();
         entity.setRecordData(recordData);
