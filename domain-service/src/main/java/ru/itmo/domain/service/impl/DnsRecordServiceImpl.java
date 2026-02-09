@@ -144,11 +144,11 @@ public class DnsRecordServiceImpl implements DnsRecordService {
         if (domain == null) {
             throw new DnsRecordNotFoundException(id);
         }
-        String l2DomainName = domain.getDomainPart();
+        String expectedName = getFullDomainName(domain);
         JsonNode tree = objectMapper.valueToTree(dnsRecord);
         String bodyName = tree.has("name") && !tree.get("name").isNull() ? tree.get("name").asText().trim() : null;
-        if (bodyName == null || !l2DomainName.equals(bodyName)) {
-            throw new DnsRecordNameMismatchException(l2DomainName, bodyName);
+        if (bodyName == null || !expectedName.equals(bodyName)) {
+            throw new DnsRecordNameMismatchException(expectedName, bodyName);
         }
         String recordData = tree.toString();
         entity.setRecordData(recordData);
@@ -222,6 +222,14 @@ public class DnsRecordServiceImpl implements DnsRecordService {
             root = root.getParent();
         }
         return root.getDomainPart();
+    }
+
+    /** Full DNS name for the domain: L2 = domainPart, L3 = domainPart + "." + L2 name, etc. */
+    private static String getFullDomainName(Domain domain) {
+        if (domain.getParent() == null) {
+            return domain.getDomainPart();
+        }
+        return domain.getDomainPart() + "." + getL2DomainName(domain);
     }
 
     private DnsRecordResponse toDnsRecordResponse(String recordData, Long id) {
