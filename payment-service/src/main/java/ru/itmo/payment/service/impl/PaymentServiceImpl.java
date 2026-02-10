@@ -1,10 +1,13 @@
 package ru.itmo.payment.service.impl;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
 import ru.itmo.common.audit.AuditClient;
 import ru.itmo.payment.client.DomainClient;
@@ -88,6 +91,22 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setL3Domains(new ArrayList<>(request.getL3Domains()));
         paymentRepository.save(payment);
 
+        String jwtToken = getJwtTokenFromRequest();
+        if (jwtToken == null || jwtToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT token required for reservation");
+        }
+
+        try {
+            int reservationTtlMinutes = 10;
+            domainClient.reserveDomains(payment.getId(), userId, payment.getL3Domains(), payment.getPeriod(), reservationTtlMinutes, jwtToken);
+            log.info("Reserved {} domains for payment {}", payment.getL3Domains().size(), payment.getId());
+        } catch (DomainClientException e) {
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setUpdatedAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Failed to reserve domains: " + e.getMessage());
+        }
+
         String returnUrl = yooKassaProperties.getReturnUrl() + "?paymentId=" + payment.getId();
         YooKassaClient.YooKassaCreateResponse yooKassaResponse = yooKassaClient.createPayment(
                 payment.getId().toString(),
@@ -158,38 +177,69 @@ public class PaymentServiceImpl implements PaymentService {
         if (mappedStatus == PaymentStatus.PAID && !payment.isDomainsCreated()) {
             if (jwtToken != null && !jwtToken.isBlank()) {
                 try {
-                    List<String> renewedDomains = domainClient.renewUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
-                    if (!renewedDomains.isEmpty()) {
-                        payment.setDomainsCreated(true);
-                        payment.setPaidAt(LocalDateTime.now());
-                        auditClient.log("Payment confirmed: " + payment.getId() + ", domains renewed: " + renewedDomains.size(), userId);
-                    } else {
-                        List<String> createdDomains = domainClient.createUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
-                        payment.setDomainsCreated(true);
-                        payment.setPaidAt(LocalDateTime.now());
-                        auditClient.log("Payment confirmed: " + payment.getId() + ", domains created: " + createdDomains.size(), userId);
+                    domainClient.confirmReservation(payment.getId(), jwtToken);
+                    log.info("Confirmed reservation for payment {}", payment.getId());
+                    
+                    try {
+                        List<String> renewedDomains = domainClient.renewUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
+                        if (!renewedDomains.isEmpty()) {
+                            payment.setDomainsCreated(true);
+                            payment.setPaidAt(LocalDateTime.now());
+                            auditClient.log("Payment confirmed: " + payment.getId() + ", domains renewed: " + renewedDomains.size(), userId);
+                        } else {
+                            List<String> createdDomains = domainClient.createUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
+                            payment.setDomainsCreated(true);
+                            payment.setPaidAt(LocalDateTime.now());
+                            auditClient.log("Payment confirmed: " + payment.getId() + ", domains created: " + createdDomains.size(), userId);
+                        }
+                    } catch (DomainClientException e) {
+                        try {
+                            List<String> createdDomains = domainClient.createUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
+                            payment.setDomainsCreated(true);
+                            payment.setPaidAt(LocalDateTime.now());
+                            auditClient.log("Payment confirmed: " + payment.getId() + ", domains created (renew failed): " + createdDomains.size(), userId);
+                        } catch (DomainClientException createException) {
+                            log.error("Failed to create/renew domains for payment {}: {}", payment.getId(), createException.getMessage());
+                            payment.setPaidAt(LocalDateTime.now());
+                            auditClient.log("Payment confirmed but domains not processed: " + payment.getId(), userId);
+                        }
                     }
                 } catch (DomainClientException e) {
-                    try {
-                        List<String> createdDomains = domainClient.createUserDomains(payment.getL3Domains(), payment.getPeriod(), jwtToken);
-                        payment.setDomainsCreated(true);
-                        payment.setPaidAt(LocalDateTime.now());
-                        auditClient.log("Payment confirmed: " + payment.getId() + ", domains created (renew failed): " + createdDomains.size(), userId);
-                    } catch (DomainClientException createException) {
-                        log.error("Failed to create/renew domains for payment {}: {}", payment.getId(), createException.getMessage());
-                        payment.setPaidAt(LocalDateTime.now());
-                        auditClient.log("Payment confirmed but domains not processed: " + payment.getId(), userId);
-                    }
+                    log.warn("Failed to confirm reservation for payment {}: {}", payment.getId(), e.getMessage());
+                    payment.setPaidAt(LocalDateTime.now());
+                    auditClient.log("Payment confirmed but reservation not confirmed: " + payment.getId(), userId);
                 }
             } else {
                 payment.setPaidAt(LocalDateTime.now());
                 auditClient.log("Payment confirmed (webhook): " + payment.getId(), payment.getUserId());
+            }
+        } else if (mappedStatus == PaymentStatus.FAILED) {
+            String jwtTokenForCancel = getJwtTokenFromRequest();
+            if (jwtTokenForCancel != null && !jwtTokenForCancel.isBlank()) {
+                try {
+                    domainClient.cancelReservation(payment.getId(), jwtTokenForCancel);
+                    log.info("Cancelled reservation for failed payment {}", payment.getId());
+                } catch (DomainClientException e) {
+                    log.warn("Failed to cancel reservation for payment {}: {}", payment.getId(), e.getMessage());
+                }
             }
         }
 
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
         return buildStatusResponse(payment);
+    }
+
+    private String getJwtTokenFromRequest() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                return authHeader.substring(7);
+            }
+        }
+        return null;
     }
 
     @Override
